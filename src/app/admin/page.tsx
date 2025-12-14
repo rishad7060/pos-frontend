@@ -108,16 +108,16 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-        <div className="flex items-center space-x-2">
-          <Button>Download Report</Button>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
+        <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <Button size="sm" className="w-full sm:w-auto text-xs sm:text-sm">Download Report</Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -175,14 +175,14 @@ export default function AdminDashboard() {
       </div>
 
       {/* Charts Section */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Revenue Overview</CardTitle>
-            <CardDescription>Daily revenue for the past 7 days</CardDescription>
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-7">
+        <Card className="col-span-1 lg:col-span-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg sm:text-xl">Revenue Overview</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Daily revenue for the past 7 days</CardDescription>
           </CardHeader>
-          <CardContent className="pl-2">
-            <div className="h-[300px]">
+          <CardContent className="pl-1 sm:pl-2">
+            <div className="h-[250px] sm:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={salesData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
@@ -211,31 +211,31 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Recent Orders</CardTitle>
-            <CardDescription>
+        <Card className="col-span-1 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg sm:text-xl">Recent Orders</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
               Latest transactions from your store
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-primary/10 p-2 rounded-full">
-                      <ShoppingBag className="h-4 w-4 text-primary" />
+                <div key={order.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                  <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
+                    <div className="bg-primary/10 p-1.5 sm:p-2 rounded-full flex-shrink-0">
+                      <ShoppingBag className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                     </div>
-                    <div>
-                      <p className="text-sm font-medium leading-none">{order.orderNumber}</p>
-                      <p className="text-xs text-muted-foreground text-ellipsis">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-medium leading-none truncate">{order.orderNumber}</p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                         {order.itemCount} items • {format(new Date(order.createdAt), 'MMM dd, HH:mm')}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold">LKR {Number(order.total).toFixed(2)}</p>
-                    <Badge variant={order.status === 'completed' ? 'outline' : 'secondary'} className="text-[10px] px-1 py-0 h-5">
+                  <div className="text-left sm:text-right flex-shrink-0 ml-auto sm:ml-0">
+                    <p className="text-xs sm:text-sm font-bold">LKR {Number(order.total).toFixed(2)}</p>
+                    <Badge variant={order.status === 'completed' ? 'outline' : 'secondary'} className="text-[10px] px-1 py-0 h-4 sm:h-5">
                       {order.status}
                     </Badge>
                   </div>
@@ -250,14 +250,14 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Daily Orders</CardTitle>
-            <CardDescription>Number of orders per day</CardDescription>
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-7">
+        <Card className="col-span-1 lg:col-span-3">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg sm:text-xl">Daily Orders</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Number of orders per day</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[250px]">
+            <div className="h-[200px] sm:h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={salesData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
@@ -272,24 +272,24 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Top Products</CardTitle>
-            <CardDescription>Best-selling items in your inventory</CardDescription>
+        <Card className="col-span-1 lg:col-span-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg sm:text-xl">Top Products</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Best-selling items in your inventory</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {topProducts.map((product, i) => (
-                <div key={product.id} className="flex items-center">
-                  <div className="w-8 font-bold text-muted-foreground">0{i + 1}</div>
-                  <div className="flex-1">
-                    <div className="font-medium">{product.name}</div>
-                    <div className="text-xs text-muted-foreground">{product.sku || 'No SKU'}</div>
+                <div key={product.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-0">
+                  <div className="w-6 sm:w-8 font-bold text-muted-foreground text-xs sm:text-sm">0{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm sm:text-base truncate">{product.name}</div>
+                    <div className="text-[10px] sm:text-xs text-muted-foreground truncate">{product.sku || 'No SKU'}</div>
                   </div>
-                  <div className="text-sm font-medium">
+                  <div className="text-xs sm:text-sm font-medium flex-shrink-0">
                     {product.stockQuantity ?? 0} in stock
                   </div>
-                  <div className="ml-4 font-bold text-sm">
+                  <div className="ml-0 sm:ml-4 font-bold text-xs sm:text-sm flex-shrink-0">
                     LKR {(product.defaultPricePerKg ?? 0).toFixed(2)}
                   </div>
                 </div>

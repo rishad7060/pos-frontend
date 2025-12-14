@@ -648,7 +648,7 @@ export default function OrderHistory() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4 items-end">
+            <div className="flex flex-wrap gap-4 items-end">
               <div className="flex-1 max-w-xs space-y-2">
                 <Label htmlFor="searchDate">Filter by Date</Label>
                 <Input
@@ -696,7 +696,7 @@ export default function OrderHistory() {
             {orders.map((order) => (
               <Card key={order.id}>
                 <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="font-bold text-lg">{order.orderNumber}</h3>
@@ -735,7 +735,7 @@ export default function OrderHistory() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex gap-2 w-full sm:w-auto sm:ml-4">
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
@@ -747,7 +747,7 @@ export default function OrderHistory() {
                             View
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>Order Details - {selectedOrder?.order.orderNumber}</DialogTitle>
                           </DialogHeader>

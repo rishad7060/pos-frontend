@@ -97,8 +97,8 @@ export default function AuditLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button variant="ghost" onClick={() => router.push('/admin')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -182,31 +182,31 @@ export default function AuditLogsPage() {
           {logs.map((log) => (
             <Card key={log.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <Shield className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
                         <span className={`px-2 py-1 text-xs font-semibold rounded ${getActionColor(log.action)}`}>
                           {log.action.toUpperCase()}
                         </span>
                         <Badge variant="outline">{log.entityType}</Badge>
                         {log.entityId && <span className="text-xs text-muted-foreground">ID: {log.entityId}</span>}
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
                         <User className="h-3 w-3 text-muted-foreground" />
                         <span className="text-muted-foreground">User {log.userId}</span>
                         {log.ipAddress && (
                           <>
-                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground hidden sm:inline">•</span>
                             <span className="text-muted-foreground">{log.ipAddress}</span>
                           </>
                         )}
                         {log.notes && (
                           <>
-                            <span className="text-muted-foreground">•</span>
+                            <span className="text-muted-foreground hidden sm:inline">•</span>
                             <span className="text-muted-foreground">{log.notes}</span>
                           </>
                         )}
@@ -214,7 +214,7 @@ export default function AuditLogsPage() {
                     </div>
                   </div>
 
-                  <div className="text-right">
+                  <div className="text-left sm:text-right w-full sm:w-auto">
                     <p className="text-sm text-muted-foreground">
                       {new Date(log.createdAt).toLocaleString()}
                     </p>

@@ -11,13 +11,13 @@ import { getAuthUser, logout } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { formatCurrency, formatNumber } from '@/lib/number-utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  ArrowLeft, 
-  TrendingUp, 
-  DollarSign, 
-  ShoppingCart, 
-  Package, 
-  Users, 
+import {
+  ArrowLeft,
+  TrendingUp,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  Users,
   AlertTriangle,
   LogOut,
   User,
@@ -112,8 +112,8 @@ export default function DashboardPage() {
         {/* Header */}
         <header className="bg-white dark:bg-gray-800 border-b shadow-sm">
           <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 w-full md:w-auto">
                 <Button variant="ghost" onClick={() => router.push('/admin')}>
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
                 <Select value={period} onValueChange={(v: any) => setPeriod(v)}>
                   <SelectTrigger className="w-32">
                     <SelectValue />
@@ -137,14 +137,14 @@ export default function DashboardPage() {
                 </Select>
 
                 {user && (
-                  <div className="text-right mr-4">
+                  <div className="text-right mr-4 hidden sm:block">
                     <div className="font-medium flex items-center gap-2">
                       <User className="h-4 w-4" />
                       {user.fullName}
                     </div>
                   </div>
                 )}
-                
+
                 <Button variant="outline" onClick={logout}>
                   <LogOut className="h-4 w-4 mr-2" />
                   Logout
@@ -363,8 +363,8 @@ export default function DashboardPage() {
                     ) : (
                       <div className="space-y-3">
                         {stats.lowStockAlerts.slice(0, 5).map((product) => (
-                          <div 
-                            key={product.productId} 
+                          <div
+                            key={product.productId}
                             className="flex items-center justify-between p-2 border rounded-lg hover:bg-muted/50 transition-colors"
                           >
                             <div>
@@ -374,7 +374,7 @@ export default function DashboardPage() {
                               </p>
                             </div>
                             <div className="text-right">
-                              <Badge 
+                              <Badge
                                 variant={product.stockQuantity === 0 ? 'destructive' : 'default'}
                                 className={product.stockQuantity === 0 ? '' : 'bg-yellow-500'}
                               >
@@ -387,8 +387,8 @@ export default function DashboardPage() {
                           </div>
                         ))}
                         {stats.lowStockAlerts.length > 5 && (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             className="w-full"
                             onClick={() => router.push('/admin/products?stock=low')}
                           >

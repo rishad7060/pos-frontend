@@ -433,14 +433,13 @@ export default function UsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
           <Button variant="ghost" onClick={() => router.push('/admin')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Admin
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">User Management</h1>
+            <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
             <p className="text-gray-600 dark:text-gray-400">Manage system users and their roles</p>
           </div>
         </div>
@@ -458,7 +457,7 @@ export default function UsersPage() {
               Add User
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingUser ? 'Edit User' : 'Create New User'}</DialogTitle>
               <DialogDescription>
@@ -483,7 +482,7 @@ export default function UsersPage() {
               {/* Show different fields based on role */}
               {formData.role === 'cashier' ? (
                 // Cashier fields: Name and PIN only
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="fullName">Full Name *</Label>
                     <Input
@@ -509,7 +508,7 @@ export default function UsersPage() {
               ) : (
                 // Manager/Admin fields: Name, Email, Password
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fullName">Full Name *</Label>
                       <Input
@@ -547,7 +546,7 @@ export default function UsersPage() {
                 </>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="role">Role *</Label>
                   <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as 'admin' | 'manager' | 'cashier' })}>
@@ -602,7 +601,7 @@ export default function UsersPage() {
                     Configure what this manager can access in the admin panel.
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Dashboard & Reports */}
                     <div className="space-y-3">
                       <h5 className="font-medium">Dashboard & Reports</h5>

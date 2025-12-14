@@ -154,8 +154,8 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button variant="ghost" onClick={() => router.push('/admin')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -171,9 +171,9 @@ export default function CustomersPage() {
       </div>
       {/* Pending Credits Alert */}
       {customersWithPendingCredit.length > 0 && (
-        <Alert className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-900/10">
-          <AlertTriangle className="h-4 w-4 text-orange-600" />
-          <AlertDescription className="text-orange-800 dark:text-orange-200">
+        <Alert className="mb-6 border-red-200 bg-red-50 dark:bg-red-200/10">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800 dark:text-red-900">
             <span className="font-medium">{customersWithPendingCredit.length} customer(s)</span> have pending credit balances totaling{' '}
             <span className="font-bold">
               {formatCurrency(customersWithPendingCredit.reduce((sum, c) => sum + toNumber(c.creditBalance || 0), 0))}
@@ -318,7 +318,7 @@ export default function CustomersPage() {
 
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingCustomer ? 'Edit Customer' : 'Add Customer'}</DialogTitle>
           </DialogHeader>

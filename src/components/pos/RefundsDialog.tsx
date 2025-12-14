@@ -410,16 +410,16 @@ export function RefundsDialog({ open, onOpenChange, cashierId, canProcessRefunds
 
         {/* Approval Status Info Banner */}
         {canAutoApproveRefunds ? (
-          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm">
+          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-200/20 border border-green-200 dark:border-green-800 rounded-lg text-sm">
             <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-            <p className="text-green-700 dark:text-green-400">
+            <p className="text-green-700 dark:text-green-800">
               <strong>Auto-Approval Enabled:</strong> Your refunds will be processed immediately without admin approval. Stock will be updated for items in good condition.
             </p>
           </div>
         ) : (
-          <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
+          <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-200/20 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
             <AlertCircle className="h-4 w-4 text-blue-600 shrink-0" />
-            <p className="text-blue-700 dark:text-blue-400">
+            <p className="text-blue-700 dark:text-blue-800">
               <strong>Admin Approval Required:</strong> Refunds will be submitted for admin review. Stock updates will occur only after approval.
             </p>
           </div>

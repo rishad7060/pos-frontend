@@ -142,8 +142,8 @@ export default function CashTransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button variant="ghost" onClick={() => router.push('/admin')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -163,7 +163,7 @@ export default function CashTransactionsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
+              <div className="p-3 rounded-full bg-green-100 dark:bg-green-200/30">
                 <TrendingUp className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
@@ -177,7 +177,7 @@ export default function CashTransactionsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30">
+              <div className="p-3 rounded-full bg-red-100 dark:bg-red-200/30">
                 <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <div>
@@ -191,7 +191,7 @@ export default function CashTransactionsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
+              <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-200/30">
                 <Banknote className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
@@ -207,7 +207,7 @@ export default function CashTransactionsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/30">
+              <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-200/30">
                 <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>

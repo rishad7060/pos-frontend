@@ -581,7 +581,7 @@ export default function ProductsPage() {
       {/* Category Management Section */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Folder className="h-5 w-5" />
               Category Management
@@ -596,7 +596,7 @@ export default function ProductsPage() {
                   Add Category
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingCategory ? 'Edit Category' : 'Create New Category'}</DialogTitle>
                 </DialogHeader>
@@ -768,7 +768,7 @@ export default function ProductsPage() {
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-4">
                       <Tabs defaultValue="basic" className="w-full">
-                        <TabsList className="grid w-full grid-cols-4">
+                        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
                           <TabsTrigger value="basic">Basic</TabsTrigger>
                           <TabsTrigger value="inventory">Inventory</TabsTrigger>
                           <TabsTrigger value="pricing">Pricing</TabsTrigger>

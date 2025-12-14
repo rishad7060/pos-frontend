@@ -219,22 +219,22 @@ export default function ShiftsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" onClick={() => router.push('/admin')}>
-            <ArrowLeft className="h-5 w-5" />
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button variant="ghost" size="sm" onClick={() => router.push('/admin')} className="h-8 w-8 sm:h-9 sm:w-9">
+            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Shift Management</h1>
-            <p className="text-sm text-muted-foreground">Monitor cashier shifts and sessions</p>
+            <h1 className="text-xl sm:text-2xl font-bold">Shift Management</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Monitor cashier shifts and sessions</p>
           </div>
         </div>
       </div>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="sessions">Cashier Sessions & Logins</TabsTrigger>
-          <TabsTrigger value="shifts">Cash Management Shifts</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
+          <TabsTrigger value="sessions" className="text-xs sm:text-sm px-2 sm:px-3">Sessions & Logins</TabsTrigger>
+          <TabsTrigger value="shifts" className="text-xs sm:text-sm px-2 sm:px-3">Cash Shifts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="sessions" className="space-y-6">
@@ -247,11 +247,11 @@ export default function ShiftsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div className="space-y-2">
-                  <Label>Status</Label>
+                  <Label className="text-xs sm:text-sm">Status</Label>
                   <Select value={sessionFilters.status} onValueChange={(value) => setSessionFilters(prev => ({ ...prev, status: value }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-9 sm:h-10">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -262,23 +262,25 @@ export default function ShiftsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Start Date</Label>
+                  <Label className="text-xs sm:text-sm">Start Date</Label>
                   <Input
                     type="date"
                     value={sessionFilters.startDate}
                     onChange={(e) => setSessionFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                    className="h-9 sm:h-10"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>End Date</Label>
+                  <Label className="text-xs sm:text-sm">End Date</Label>
                   <Input
                     type="date"
                     value={sessionFilters.endDate}
                     onChange={(e) => setSessionFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                    className="h-9 sm:h-10"
                   />
                 </div>
                 <div className="flex items-end">
-                  <Button onClick={fetchUserSessions} className="w-full">
+                  <Button onClick={fetchUserSessions} className="w-full h-9 sm:h-10 text-xs sm:text-sm">
                     Apply Filters
                   </Button>
                 </div>
@@ -298,62 +300,62 @@ export default function ShiftsPage() {
             <div className="space-y-4">
               {(userSessions || []).map((session) => (
                 <Card key={session.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${session.user.role === 'admin' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                  <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${session.user.role === 'admin' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
                           }`}>
-                          {session.loginMethod === 'pin' ? <Shield className="h-5 w-5" /> : <User className="h-5 w-5" />}
+                          {session.loginMethod === 'pin' ? <Shield className="h-4 w-4 sm:h-5 sm:w-5" /> : <User className="h-4 w-4 sm:h-5 sm:w-5" />}
                         </div>
-                        <div>
-                          <CardTitle className="text-lg">{session.user.fullName}</CardTitle>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant={session.user.role === 'admin' ? 'default' : 'secondary'}>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-base sm:text-lg truncate">{session.user.fullName}</CardTitle>
+                          <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-1">
+                            <Badge variant={session.user.role === 'admin' ? 'default' : 'secondary'} className="text-[10px] sm:text-xs">
                               {session.user.role}
                             </Badge>
-                            <Badge variant="outline">
-                              {session.loginMethod === 'pin' ? 'PIN Login' : 'Password Login'}
+                            <Badge variant="outline" className="text-[10px] sm:text-xs">
+                              {session.loginMethod === 'pin' ? 'PIN' : 'Password'}
                             </Badge>
                             {!session.logoutTime && (
-                              <Badge variant="destructive">Active Session</Badge>
+                              <Badge variant="destructive" className="text-[10px] sm:text-xs">Active</Badge>
                             )}
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <LogIn className="h-4 w-4" />
-                          <span>{new Date(session.loginTime).toLocaleString()}</span>
+                      <div className="text-left sm:text-right flex-shrink-0">
+                        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+                          <LogIn className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                          <span className="text-[10px] sm:text-xs">{new Date(session.loginTime).toLocaleDateString()}</span>
                         </div>
                         {session.logoutTime && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                            <LogOut className="h-4 w-4" />
-                            <span>{new Date(session.logoutTime).toLocaleString()}</span>
+                          <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1">
+                            <LogOut className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                            <span className="text-[10px] sm:text-xs">{new Date(session.logoutTime).toLocaleDateString()}</span>
                           </div>
                         )}
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <CardContent className="p-3 sm:p-6 pt-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                       <div>
-                        <p className="text-xs text-muted-foreground">Session Duration</p>
-                        <p className="font-bold">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Session Duration</p>
+                        <p className="font-bold text-xs sm:text-sm">
                           {session.sessionDuration ? `${session.sessionDuration} min` : 'Active'}
                         </p>
                       </div>
                       {session.ipAddress && (
                         <div>
-                          <p className="text-xs text-muted-foreground">IP Address</p>
-                          <p className="font-mono text-sm">{session.ipAddress}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">IP Address</p>
+                          <p className="font-mono text-xs sm:text-sm truncate">{session.ipAddress}</p>
                         </div>
                       )}
                     </div>
 
                     {session.user.role === 'cashier' && (
                       <div className="mt-3 p-2 bg-muted rounded-lg">
-                        <p className="text-xs text-muted-foreground">Cashier Account</p>
-                        <p className="text-sm">
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Cashier Account</p>
+                        <p className="text-xs sm:text-sm">
                           PIN login enabled for this user
                         </p>
                       </div>
@@ -393,69 +395,67 @@ export default function ShiftsPage() {
             <div className="space-y-4">
               {shifts.map((shift) => (
                 <Card key={shift.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{shift.shiftNumber}</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Opened: {new Date(shift.openedAt).toLocaleString()}
+                  <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-base sm:text-lg truncate">{shift.shiftNumber}</CardTitle>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">
+                          Opened: {new Date(shift.openedAt).toLocaleDateString()}
                         </p>
                         {shift.closedAt && (
-                          <p className="text-sm text-muted-foreground">
-                            Closed: {new Date(shift.closedAt).toLocaleString()}
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                            Closed: {new Date(shift.closedAt).toLocaleDateString()}
                           </p>
                         )}
                         {shift.cashier && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             Cashier: {shift.cashier.fullName}
                           </p>
                         )}
                       </div>
-                      <Badge className={shift.status === 'open'
+                      <Badge className={`flex-shrink-0 text-xs ${shift.status === 'open'
                         ? "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200"
-                        : "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200"}>
+                        : "bg-gray-100 text-gray-800 border-gray-200 hover:bg-gray-200"}`}>
                         {shift.status}
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <CardContent className="p-3 sm:p-6 pt-0">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                       <div>
-                        <p className="text-xs text-muted-foreground">Opening Cash</p>
-                        <p className="font-bold">LKR {shift.openingCash.toFixed(2)}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Opening Cash</p>
+                        <p className="font-bold text-xs sm:text-sm">LKR {shift.openingCash.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Total Sales</p>
-                        <p className="font-bold text-green-600">LKR {shift.totalSales.toFixed(2)}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Total Sales</p>
+                        <p className="font-bold text-green-600 text-xs sm:text-sm">LKR {shift.totalSales.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Orders</p>
-                        <p className="font-bold">{shift.totalOrders}</p>
+                        <p className="text-[10px] sm:text-xs text-muted-foreground">Orders</p>
+                        <p className="font-bold text-xs sm:text-sm">{shift.totalOrders}</p>
                       </div>
                       {shift.status === 'closed' && (
-                        <>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Variance</p>
-                            <p className={`font-bold ${shift.variance && shift.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              LKR {shift.variance?.toFixed(2) || '0.00'}
-                            </p>
-                          </div>
-                        </>
+                        <div>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">Variance</p>
+                          <p className={`font-bold text-xs sm:text-sm ${shift.variance && shift.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            LKR {shift.variance?.toFixed(2) || '0.00'}
+                          </p>
+                        </div>
                       )}
                     </div>
 
                     {shift.status === 'open' && (
-                      <div className="mt-4">
-                        <Button onClick={() => openCloseDialog(shift)} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                      <div className="mt-3 sm:mt-4">
+                        <Button onClick={() => openCloseDialog(shift)} className="w-full bg-blue-600 hover:bg-blue-700 text-white h-9 sm:h-10 text-xs sm:text-sm">
                           Close Shift
                         </Button>
                       </div>
                     )}
 
                     {shift.status === 'closed' && shift.variance && Math.abs(shift.variance) > 100 && (
-                      <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-lg flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                        <span className="text-sm text-yellow-700 dark:text-yellow-400">
+                      <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-900 rounded-lg flex items-center gap-2">
+                        <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm text-yellow-700 dark:text-yellow-400">
                           High variance detected
                         </span>
                       </div>
@@ -470,55 +470,57 @@ export default function ShiftsPage() {
 
 
       <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[95vw] max-w-md mx-auto">
           <DialogHeader>
-            <DialogTitle>Close Shift - {selectedShift?.shiftNumber}</DialogTitle>
+            <DialogTitle className="text-base sm:text-lg">Close Shift - {selectedShift?.shiftNumber}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCloseShift} className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg space-y-2">
+          <form onSubmit={handleCloseShift} className="space-y-3 sm:space-y-4">
+            <div className="p-3 sm:p-4 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between">
-                <span className="text-sm">Opening Cash:</span>
-                <span className="font-semibold">LKR {selectedShift?.openingCash.toFixed(2)}</span>
+                <span className="text-xs sm:text-sm">Opening Cash:</span>
+                <span className="font-semibold text-xs sm:text-sm">LKR {selectedShift?.openingCash.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm">Sales:</span>
-                <span className="font-semibold text-green-600">LKR {selectedShift?.totalSales.toFixed(2)}</span>
+                <span className="text-xs sm:text-sm">Sales:</span>
+                <span className="font-semibold text-green-600 text-xs sm:text-sm">LKR {selectedShift?.totalSales.toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t pt-2">
-                <span className="font-semibold">Expected Cash:</span>
-                <span className="font-bold">
+                <span className="font-semibold text-xs sm:text-sm">Expected Cash:</span>
+                <span className="font-bold text-xs sm:text-sm">
                   LKR {selectedShift ? (selectedShift.openingCash + selectedShift.totalSales).toFixed(2) : '0.00'}
                 </span>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Closing Cash (System) *</Label>
+              <Label className="text-xs sm:text-sm">Closing Cash (System) *</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={closeData.closingCash}
                 onChange={(e) => setCloseData({ ...closeData, closingCash: e.target.value })}
                 required
+                className="h-9 sm:h-10"
               />
             </div>
 
             <div className="space-y-2">
-              <Label>Actual Cash (Counted) *</Label>
+              <Label className="text-xs sm:text-sm">Actual Cash (Counted) *</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={closeData.actualCash}
                 onChange={(e) => setCloseData({ ...closeData, actualCash: e.target.value })}
                 required
+                className="h-9 sm:h-10"
               />
             </div>
 
             {closeData.closingCash && closeData.actualCash && (
-              <div className="p-4 bg-muted rounded-lg">
+              <div className="p-3 sm:p-4 bg-muted rounded-lg">
                 <div className="flex justify-between items-center">
-                  <span className="font-semibold">Variance:</span>
-                  <span className={`text-xl font-bold ${parseFloat(closeData.actualCash) - parseFloat(closeData.closingCash) < 0
+                  <span className="font-semibold text-xs sm:text-sm">Variance:</span>
+                  <span className={`text-lg sm:text-xl font-bold ${parseFloat(closeData.actualCash) - parseFloat(closeData.closingCash) < 0
                     ? 'text-red-600'
                     : 'text-green-600'
                     }`}>
@@ -529,8 +531,8 @@ export default function ShiftsPage() {
             )}
 
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">Close Shift</Button>
-              <Button type="button" variant="outline" onClick={() => setCloseDialogOpen(false)}>
+              <Button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white h-9 sm:h-10 text-xs sm:text-sm">Close Shift</Button>
+              <Button type="button" variant="outline" onClick={() => setCloseDialogOpen(false)} className="h-9 sm:h-10 text-xs sm:text-sm">
                 Cancel
               </Button>
             </div>

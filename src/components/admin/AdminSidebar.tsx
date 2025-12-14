@@ -23,17 +23,38 @@ import {
     Shield,
     Settings,
     ChevronRight,
-    Menu
+    Menu,
+    X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+    mobileMenuOpen?: boolean;
+    setMobileMenuOpen?: (open: boolean) => void;
+}
+
+export default function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: AdminSidebarProps = {} as AdminSidebarProps) {
     const pathname = usePathname();
     const [user, setUser] = useState<any>(null);
     const [managerPermissions, setManagerPermissions] = useState<any>(null);
     const [collapsed, setCollapsed] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+    const [internalMobileMenuOpen, setInternalMobileMenuOpen] = useState(false);
+    
+    const isMobileMenuOpen = mobileMenuOpen !== undefined ? mobileMenuOpen : internalMobileMenuOpen;
+    const setIsMobileMenuOpen = setMobileMenuOpen || setInternalMobileMenuOpen;
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 1024);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     useEffect(() => {
         const currentUser = getAuthUser();
@@ -129,14 +150,101 @@ export default function AdminSidebar() {
         })
     })).filter(module => module.items.length > 0);
 
+    const SidebarContent = ({ onLinkClick }: { onLinkClick?: () => void }) => (
+        <>
+            <div className="flex-1 min-h-0 overflow-hidden">
+                <ScrollArea className="h-full">
+                    <div className="space-y-3 sm:space-y-4 px-2 py-3">
+                        {filteredModules.map((module, i) => (
+                            <div key={i}>
+                                {(!collapsed || isMobile) && (
+                                    <h3 className="mb-1.5 px-3 text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        {module.title}
+                                    </h3>
+                                )}
+                                <div className="space-y-0.5">
+                                    {module.items.map((item) => {
+                                        const isActive = pathname === item.route || (item.route !== '/admin' && pathname?.startsWith(item.route + '/'));
+                                        const Icon = item.icon;
+
+                                        return (
+                                            <Link
+                                                key={item.route}
+                                                href={item.route}
+                                                onClick={onLinkClick}
+                                                className={cn(
+                                                    "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs sm:text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+                                                    isActive ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700" : "text-foreground border-transparent hover:border-blue-500",
+                                                    (collapsed && !isMobile) && "justify-center px-2"
+                                                )}
+                                                title={(collapsed && !isMobile) ? item.label : undefined}
+                                            >
+                                                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                                                {(!collapsed || isMobile) && <span className="truncate">{item.label}</span>}
+                                                {(!collapsed || isMobile) && isActive && <ChevronRight className="ml-auto h-3 w-3 opacity-50 flex-shrink-0" />}
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </ScrollArea>
+            </div>
+
+            {(!collapsed || isMobile) && user && (
+                <div className="p-2.5 sm:p-3 border-t bg-muted/20 flex-shrink-0">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold flex-shrink-0 text-xs sm:text-sm">
+                            {user.fullName.charAt(0)}
+                        </div>
+                        <div className="flex-1 overflow-hidden min-w-0">
+                            <div className="text-xs sm:text-sm font-medium truncate">{user.fullName}</div>
+                            <div className="text-[10px] sm:text-xs text-muted-foreground truncate capitalize">{user.role}</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+
+    // Mobile sidebar (Sheet/Drawer)
+    if (isMobile) {
+        return (
+            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetContent side="left" className="w-64 p-0 sm:w-80 flex flex-col">
+                    <div className="h-full flex flex-col min-h-0">
+                        <div className="p-3 flex items-center justify-between border-b h-14 flex-shrink-0">
+                            <div className="font-bold text-lg text-blue-600 truncate">
+                                POS Admin
+                            </div>
+                            {/* <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="flex-shrink-0 h-8 w-8"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button> */}
+                        </div>
+                        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                            <SidebarContent onLinkClick={() => setIsMobileMenuOpen(false)} />
+                        </div>
+                    </div>
+                </SheetContent>
+            </Sheet>
+        );
+    }
+
+    // Desktop sidebar
     return (
         <div className={cn(
-            "h-screen bg-card border-r transition-all duration-300 ease-in-out flex flex-col z-20 sticky top-0",
+            "hidden lg:flex h-screen bg-card border-r transition-all duration-300 ease-in-out flex-col z-20 sticky top-0",
             collapsed ? "w-16" : "w-64"
         )}>
-            <div className="p-4 flex items-center justify-between border-b h-16">
+            <div className="p-3 flex items-center justify-between border-b h-14 flex-shrink-0">
                 {!collapsed && (
-                    <div className="font-bold text-xl text-blue-600 truncate">
+                    <div className="font-bold text-lg text-blue-600 truncate">
                         POS Admin
                     </div>
                 )}
@@ -144,62 +252,14 @@ export default function AdminSidebar() {
                     variant="ghost"
                     size="icon"
                     onClick={() => setCollapsed(!collapsed)}
-                    className={cn("ml-auto", collapsed && "mx-auto")}
+                    className={cn("ml-auto h-8 w-8", collapsed && "mx-auto")}
                 >
-                    <Menu className="h-5 w-5" />
+                    <Menu className="h-4 w-4" />
                 </Button>
             </div>
-
-            <ScrollArea className="flex-1 py-4">
-                <div className="space-y-6 px-2">
-                    {filteredModules.map((module, i) => (
-                        <div key={i}>
-                            {!collapsed && (
-                                <h3 className="mb-2 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                    {module.title}
-                                </h3>
-                            )}
-                            <div className="space-y-1">
-                                {module.items.map((item) => {
-                                    const isActive = pathname === item.route || (item.route !== '/admin' && pathname?.startsWith(item.route + '/'));
-                                    const Icon = item.icon;
-
-                                    return (
-                                        <Link
-                                            key={item.route}
-                                            href={item.route}
-                                            className={cn(
-                                                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                                                isActive ? "bg-blue-600 text-white shadow-md hover:bg-blue-700" : "text-foreground border-transparent hover:border-blue-500",
-                                                collapsed && "justify-center px-2"
-                                            )}
-                                            title={collapsed ? item.label : undefined}
-                                        >
-                                            <Icon className="h-4 w-4" />
-                                            {!collapsed && <span>{item.label}</span>}
-                                            {!collapsed && isActive && <ChevronRight className="ml-auto h-3 w-3 opacity-50" />}
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </ScrollArea>
-
-            {!collapsed && user && (
-                <div className="p-4 border-t bg-muted/20">
-                    <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">
-                            {user.fullName.charAt(0)}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <div className="text-sm font-medium truncate">{user.fullName}</div>
-                            <div className="text-xs text-muted-foreground truncate capitalize">{user.role}</div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                <SidebarContent />
+            </div>
         </div>
     );
 }

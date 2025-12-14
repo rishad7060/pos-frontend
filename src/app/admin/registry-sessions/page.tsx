@@ -26,7 +26,8 @@ import {
   Banknote,
   Smartphone,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
@@ -293,8 +294,8 @@ export default function RegistrySessionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button variant="ghost" size="icon" onClick={() => router.push('/admin')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -304,7 +305,7 @@ export default function RegistrySessionsPage() {
           </div>
         </div>
         <Button onClick={fetchSessions} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
+          <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
@@ -560,7 +561,7 @@ export default function RegistrySessionsPage() {
                 {session.status === 'closed' && (session.cashPayments > 0 || session.cardPayments > 0 || session.otherPayments > 0) && (
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-xs text-muted-foreground mb-2">Payment Breakdown</p>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="flex items-center gap-2">
                         <Banknote className="h-4 w-4 text-green-600" />
                         <div>

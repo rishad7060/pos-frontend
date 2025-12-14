@@ -556,8 +556,8 @@ export default function PurchasesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button variant="ghost" size="icon" onClick={() => router.push('/admin')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -580,7 +580,7 @@ export default function PurchasesPage() {
                 <p className="text-sm text-muted-foreground">Total Purchases</p>
                 <p className="text-2xl font-bold">LKR {(stats.totalPurchases ?? 0).toFixed(2)}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-200/20 flex items-center justify-center">
                 <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
@@ -594,7 +594,7 @@ export default function PurchasesPage() {
                 <p className="text-sm text-muted-foreground">Pending Payment</p>
                 <p className="text-2xl font-bold">LKR {(stats.pendingAmount ?? 0).toFixed(2)}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-200/20 flex items-center justify-center">
                 <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
               </div>
             </div>
@@ -608,7 +608,7 @@ export default function PurchasesPage() {
                 <p className="text-sm text-muted-foreground">Received Today</p>
                 <p className="text-2xl font-bold">{stats.receivedToday}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-200/20 flex items-center justify-center">
                 <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
             </div>
@@ -622,7 +622,7 @@ export default function PurchasesPage() {
                 <p className="text-sm text-muted-foreground">Pending Orders</p>
                 <p className="text-2xl font-bold">{stats.pendingOrders}</p>
               </div>
-              <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-200/20 flex items-center justify-center">
                 <Package className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
@@ -634,8 +634,8 @@ export default function PurchasesPage() {
       <Card className="mb-6">
         <CardContent className="p-6">
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="relative flex-1 w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by purchase number..."
@@ -671,8 +671,8 @@ export default function PurchasesPage() {
               </Select>
             </div>
 
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 flex-1">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 flex-1 min-w-[300px]">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <Input
                   type="date"
@@ -732,8 +732,8 @@ export default function PurchasesPage() {
             return (
               <Card key={purchase.id} className="hover:shadow-lg transition-all duration-200">
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4 flex-1">
+                  <div className="flex flex-col md:flex-row items-start justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-start gap-4 flex-1 w-full">
                       <div className="h-14 w-14 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
                         <Package className="h-7 w-7 text-white" />
                       </div>
@@ -780,7 +780,7 @@ export default function PurchasesPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 flex-shrink-0">
+                    <div className="flex gap-2 flex-shrink-0 w-full md:w-auto mt-4 md:mt-0">
                       <Button
                         size="sm"
                         variant="outline"
@@ -964,7 +964,7 @@ export default function PurchasesPage() {
                           </Select>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
@@ -1087,7 +1087,7 @@ export default function PurchasesPage() {
 
               <TabsContent value="details" className="space-y-6 mt-6">
                 {/* Header Info */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Card>
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2">Supplier Information</h4>
@@ -1439,7 +1439,7 @@ export default function PurchasesPage() {
 
       {/* Enhanced Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>

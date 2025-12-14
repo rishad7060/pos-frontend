@@ -413,34 +413,35 @@ export default function POSPage() {
       <div className="h-screen flex flex-col bg-muted/10 overflow-hidden">
         {/* Header - Premium Design */}
         <header className="bg-background/80 backdrop-blur-md border-b flex-none z-20 shadow-sm transition-all duration-200">
-          <div className="w-full px-6 py-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="rounded-xl bg-primary text-primary-foreground p-2.5 shadow-lg shadow-primary/20">
-                  <ShoppingCart className="h-5 w-5" />
+          <div className="w-full px-3 sm:px-4 md:px-6 py-2 sm:py-3">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                <div className="rounded-xl bg-primary text-primary-foreground p-2 sm:p-2.5 shadow-lg shadow-primary/20 flex-shrink-0">
+                  <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div>
-                  <h1 className="text-xl font-bold leading-none tracking-tight">FD-POS</h1>
-                  <div className="flex items-center gap-2 mt-1.5">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-lg sm:text-xl font-bold leading-none tracking-tight truncate">FD-POS</h1>
+                  <div className="flex items-center gap-2 mt-1 sm:mt-1.5">
                     {registrySession ? (
-                      <span className="flex items-center gap-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full border border-green-100 dark:border-green-800">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      <span className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-green-800 dark:text-green-600 bg-green-10 dark:bg-green-400/20 px-1.5 sm:px-2 py-0.5 rounded-full border border-green-50 dark:border-green-400 whitespace-nowrap">
+                        <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-800 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-full w-full bg-green-500"></span>
                         </span>
-                        Registry Open
+                        <span className="hidden xs:inline">Registry Open</span>
+                        <span className="xs:hidden">Open</span>
                       </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Shared Registry System</span>
+                      <span className="text-[10px] sm:text-xs text-muted-foreground bg-muted px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap">Shared Registry</span>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
                 {/* Registry Status Details */}
                 {registrySession && (
-                  <div className="hidden lg:flex items-center gap-4 mr-4 px-4 py-2 bg-muted/40 rounded-full border border-border/50 text-xs font-medium transition-all hover:bg-muted/60">
+                  <div className="hidden xl:flex items-center gap-3 lg:gap-4 mr-2 lg:mr-4 px-3 lg:px-4 py-2 bg-muted/40 rounded-full border border-border/50 text-xs font-medium transition-all hover:bg-muted/60">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="h-3.5 w-3.5" />
                       <span>Session #{registrySession.sessionNumber}</span>
@@ -461,7 +462,7 @@ export default function POSPage() {
                 {/* TEAM_003: Offline Status Indicator */}
                 <OfflineIndicator showDetailed={true} isOfflineOverride={isOfflineMode} />
 
-                <div className="flex items-center gap-2 bg-background/50 p-1 rounded-xl border border-border/50 shadow-sm">
+                <div className="flex items-center gap-1 sm:gap-2 bg-background/50 p-0.5 sm:p-1 rounded-xl border border-border/50 shadow-sm">
                   {/* Refunds Button - TEAM_003: Disabled when offline */}
                   {registrySession && registrySession.status === 'open' && permissions?.canProcessRefunds && !isOfflineMode && (
                     <Button
@@ -471,10 +472,11 @@ export default function POSPage() {
                         setSelectedOrderForRefund('');
                         setShowRefundsDialog(true);
                       }}
-                      className="text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground hover:text-foreground h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                       title="Refunds"
                     >
-                      <RotateCcw className="h-4 w-4" />
+                      <RotateCcw className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline ml-1.5">Refunds</span>
                     </Button>
                   )}
 
@@ -484,10 +486,11 @@ export default function POSPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowCashInOutDialog(true)}
-                      className="text-muted-foreground hover:text-foreground"
+                      className="text-muted-foreground hover:text-foreground h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                       title="Cash In/Out"
                     >
-                      <ArrowLeftRight className="h-4 w-4" />
+                      <ArrowLeftRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline ml-1.5">Cash</span>
                     </Button>
                   )}
 
@@ -495,10 +498,11 @@ export default function POSPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setShowOrderHistoryDialog(true)}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="text-muted-foreground hover:text-foreground h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                     title="Order History"
                   >
-                    <History className="h-4 w-4" />
+                    <History className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline ml-1.5">History</span>
                   </Button>
 
                   {/* Close Registry Button - TEAM_003: Disabled when offline */}
@@ -507,31 +511,32 @@ export default function POSPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowCloseRegistryDialog(true)}
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                       title="Close Registry"
                     >
-                      <DoorClosed className="h-4 w-4" />
+                      <DoorClosed className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline ml-1.5">Close</span>
                     </Button>
                   )}
 
-                  <div className="h-6 w-px bg-border mx-1"></div>
+                  <div className="h-6 w-px bg-border mx-0.5 sm:mx-1"></div>
 
                   {/* User Profile & Logout */}
-                  <div className="flex items-center gap-3 pl-2 pr-1">
+                  <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 pl-1 sm:pl-2 pr-0.5 sm:pr-1">
                     {user && (
-                      <div className="hidden md:block text-right">
-                        <div className="text-sm font-semibold leading-none">{user.fullName}</div>
-                        <div className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold mt-0.5">{user.role}</div>
+                      <div className="hidden lg:block text-right">
+                        <div className="text-xs sm:text-sm font-semibold leading-none truncate max-w-[120px]">{user.fullName}</div>
+                        <div className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-bold mt-0.5">{user.role}</div>
                       </div>
                     )}
                     <Button
                       variant="secondary"
                       size="icon"
                       onClick={handleLogout}
-                      className="h-8 w-8 rounded-full shadow-sm hover:shadow-md transition-all"
+                      className="h-7 w-7 sm:h-8 sm:w-8 rounded-full shadow-sm hover:shadow-md transition-all"
                       title="Logout"
                     >
-                      <LogOut className="h-4 w-4" />
+                      <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                 </div>

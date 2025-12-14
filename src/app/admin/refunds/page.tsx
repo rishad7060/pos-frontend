@@ -744,8 +744,8 @@ export default function RefundsPage() {
               {/* Notes - show rejection reason if rejected */}
               {selectedRefund.notes && (
                 <div className={`p-3 rounded-lg border ${selectedRefund.status === 'rejected'
-                    ? 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800'
-                    : 'bg-muted/50'
+                  ? 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800'
+                  : 'bg-muted/50'
                   }`}>
                   <p className={`text-sm font-medium mb-1 ${selectedRefund.status === 'rejected' ? 'text-red-700 dark:text-red-300' : ''
                     }`}>
@@ -767,9 +767,9 @@ export default function RefundsPage() {
               )}
 
               {selectedRefund.status === 'completed' && (
-                <div className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
-                  <p className="text-sm font-medium text-green-800 dark:text-green-200 mb-1">✓ Refund Completed</p>
-                  <p className="text-xs text-green-700 dark:text-green-300">
+                <div className="p-3 bg-green-50 dark:bg-green 50/30 border border-green-50 dark:border-green-800 rounded-lg">
+                  <p className="text-sm font-medium text-green-600 mb-1">✓ Refund Completed</p>
+                  <p className="text-xs text-green-600">
                     Items marked as "Good" condition have been restocked automatically.
                   </p>
                 </div>

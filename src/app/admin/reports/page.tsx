@@ -317,48 +317,50 @@ export default function ReportsPage() {
   const totals = calculateTotals();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
 
       {/* Date Range Selection */}
       <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+            <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
             Report Period
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4 items-end">
-            <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-end">
+            <div className="space-y-2 flex-1 sm:flex-initial">
+              <Label htmlFor="startDate" className="text-xs sm:text-sm">Start Date</Label>
               <Input
                 id="startDate"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-40"
+                className="w-full sm:w-40 h-9 sm:h-10 text-sm"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="endDate">End Date</Label>
+            <div className="space-y-2 flex-1 sm:flex-initial">
+              <Label htmlFor="endDate" className="text-xs sm:text-sm">End Date</Label>
               <Input
                 id="endDate"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-40"
+                className="w-full sm:w-40 h-9 sm:h-10 text-sm"
               />
             </div>
-            <Button onClick={generateReport} disabled={loading} size="lg">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              {loading ? 'Generating...' : 'Generate Report'}
-            </Button>
-            {report && (
-              <Button variant="outline" onClick={exportToCSV} size="lg">
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-1 sm:flex-initial">
+              <Button onClick={generateReport} disabled={loading} size="default" className="w-full sm:w-auto h-9 sm:h-10 text-sm sm:text-base">
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                {loading ? 'Generating...' : 'Generate Report'}
               </Button>
-            )}
+              {report && (
+                <Button variant="outline" onClick={exportToCSV} size="default" className="w-full sm:w-auto h-9 sm:h-10 text-sm sm:text-base">
+                  <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
+                  Export CSV
+                </Button>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -374,82 +376,82 @@ export default function ReportsPage() {
       {report && (
         <div className="space-y-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card className="shadow-lg border-l-4 border-l-blue-500">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+              <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-blue-600">LKR {totals.revenue.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground mt-2">Sales income</p>
+              <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-blue-600">LKR {totals.revenue.toFixed(2)}</div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">Sales income</p>
               </CardContent>
             </Card>
 
             <Card className="shadow-lg border-l-4 border-l-red-500">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Cost</CardTitle>
+              <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Cost</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-red-600">LKR {totals.cost.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground mt-2">Product costs</p>
+              <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-red-600">LKR {totals.cost.toFixed(2)}</div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">Product costs</p>
               </CardContent>
             </Card>
 
             <Card className="shadow-lg border-l-4 border-l-green-500">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Net Profit</CardTitle>
+              <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Net Profit</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-green-600">LKR {totals.profit.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground mt-2">After costs</p>
+              <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-green-600">LKR {totals.profit.toFixed(2)}</div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">After costs</p>
               </CardContent>
             </Card>
 
             <Card className="shadow-lg border-l-4 border-l-purple-500">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Profit Margin</CardTitle>
+              <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Profit Margin</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-purple-600">{totals.margin.toFixed(1)}%</div>
-                <p className="text-xs text-muted-foreground mt-2">Average margin</p>
+              <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                <div className="text-2xl sm:text-3xl font-bold text-purple-600">{totals.margin.toFixed(1)}%</div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">Average margin</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Tabs */}
           <Card className="shadow-lg">
-            <CardHeader>
-              <div className="flex gap-2 border-b overflow-x-auto">
+            <CardHeader className="p-0">
+              <div className="flex gap-1 sm:gap-2 border-b overflow-x-auto scrollbar-horizontal px-2 sm:px-6">
                 <Button
                   variant={activeTab === 'overview' ? 'default' : 'ghost'}
                   onClick={() => setActiveTab('overview')}
-                  className="rounded-b-none whitespace-nowrap"
+                  className="rounded-b-none whitespace-nowrap flex-shrink-0 h-10 sm:h-11 text-xs sm:text-sm px-3 sm:px-4"
                 >
-                  <PieChart className="h-4 w-4 mr-2" />
+                  <PieChart className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   Overview
                 </Button>
                 <Button
                   variant={activeTab === 'products' ? 'default' : 'ghost'}
                   onClick={() => setActiveTab('products')}
-                  className="rounded-b-none whitespace-nowrap"
+                  className="rounded-b-none whitespace-nowrap flex-shrink-0 h-10 sm:h-11 text-xs sm:text-sm px-3 sm:px-4"
                 >
-                  <Package className="h-4 w-4 mr-2" />
+                  <Package className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   By Product
                 </Button>
                 <Button
                   variant={activeTab === 'prices' ? 'default' : 'ghost'}
                   onClick={() => setActiveTab('prices')}
-                  className="rounded-b-none whitespace-nowrap"
+                  className="rounded-b-none whitespace-nowrap flex-shrink-0 h-10 sm:h-11 text-xs sm:text-sm px-3 sm:px-4"
                 >
-                  <DollarSign className="h-4 w-4 mr-2" />
+                  <DollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   Price Variance
                 </Button>
                 <Button
                   variant={activeTab === 'sales' ? 'default' : 'ghost'}
                   onClick={() => setActiveTab('sales')}
-                  className="rounded-b-none whitespace-nowrap"
+                  className="rounded-b-none whitespace-nowrap flex-shrink-0 h-10 sm:h-11 text-xs sm:text-sm px-3 sm:px-4"
                 >
-                  <Eye className="h-4 w-4 mr-2" />
+                  <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   Sales Details
                 </Button>
                 <Button
@@ -460,9 +462,9 @@ export default function ReportsPage() {
                       fetchOrderProfitDetails();
                     }
                   }}
-                  className="rounded-b-none whitespace-nowrap"
+                  className="rounded-b-none whitespace-nowrap flex-shrink-0 h-10 sm:h-11 text-xs sm:text-sm px-3 sm:px-4"
                 >
-                  <Receipt className="h-4 w-4 mr-2" />
+                  <Receipt className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   Order Profit/Loss
                 </Button>
                 <Button
@@ -473,9 +475,9 @@ export default function ReportsPage() {
                       fetchPriceChangeHistory();
                     }
                   }}
-                  className="rounded-b-none whitespace-nowrap"
+                  className="rounded-b-none whitespace-nowrap flex-shrink-0 h-10 sm:h-11 text-xs sm:text-sm px-3 sm:px-4"
                 >
-                  <History className="h-4 w-4 mr-2" />
+                  <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                   Price History
                 </Button>
               </div>
@@ -484,40 +486,40 @@ export default function ReportsPage() {
             <CardContent className="pt-6">
               {/* Overview Tab */}
               {activeTab === 'overview' && (
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold mb-4">Top Performing Products</h3>
-                    <div className="space-y-3">
+                    <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Top Performing Products</h3>
+                    <div className="space-y-2 sm:space-y-3">
                       {(report.productProfitAnalysis || []).slice(0, 10).map((product, index) => (
                         <div
                           key={index}
-                          className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 p-3 sm:p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
                         >
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 w-full sm:w-auto">
+                            <div className="flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 text-primary font-bold text-xs sm:text-sm flex-shrink-0">
                               {index + 1}
                             </div>
-                            <div className="flex-1">
-                              <p className="font-semibold text-base">{product.productName}</p>
-                              <p className="text-sm text-muted-foreground">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm sm:text-base truncate">{product.productName}</p>
+                              <p className="text-xs sm:text-sm text-muted-foreground">
                                 {product.totalQuantitySold.toFixed(1)} KG sold • {product.orderCount} orders
                               </p>
                             </div>
                           </div>
-                          <div className="text-right grid grid-cols-3 gap-6 min-w-[400px]">
+                          <div className="text-left sm:text-right grid grid-cols-3 gap-3 sm:gap-6 w-full sm:w-auto sm:min-w-[400px]">
                             <div>
-                              <p className="text-xs text-muted-foreground">Revenue</p>
-                              <p className="font-bold text-blue-600">LKR {product.totalRevenue.toFixed(2)}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">Revenue</p>
+                              <p className="font-bold text-blue-600 text-xs sm:text-sm">LKR {product.totalRevenue.toFixed(2)}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Profit</p>
-                              <p className="font-bold text-green-600">LKR {product.totalProfit.toFixed(2)}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">Profit</p>
+                              <p className="font-bold text-green-600 text-xs sm:text-sm">LKR {product.totalProfit.toFixed(2)}</p>
                             </div>
                             <div>
-                              <p className="text-xs text-muted-foreground">Margin</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">Margin</p>
                               <Badge
                                 variant={product.profitMargin >= 20 ? 'default' : product.profitMargin >= 10 ? 'secondary' : 'destructive'}
-                                className="font-bold"
+                                className="font-bold text-[10px] sm:text-xs"
                               >
                                 {product.profitMargin.toFixed(1)}%
                               </Badge>
@@ -532,66 +534,68 @@ export default function ReportsPage() {
 
               {/* Products Tab */}
               {activeTab === 'products' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Product Profitability Analysis</h3>
-                    <p className="text-sm text-muted-foreground">{(report.productProfitAnalysis || []).length} products</p>
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold">Product Profitability Analysis</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">{(report.productProfitAnalysis || []).length} products</p>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {(report.productProfitAnalysis || []).map((product, index) => (
                       <div key={index} className="border rounded-lg overflow-hidden">
                         <div
-                          className="flex items-center justify-between p-4 bg-card hover:bg-muted/30 transition-colors cursor-pointer"
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 p-3 sm:p-4 bg-card hover:bg-muted/30 transition-colors cursor-pointer"
                           onClick={() => setExpandedProduct(expandedProduct === index ? null : index)}
                         >
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className={`h-2 w-2 rounded-full ${product.profitMargin >= 20 ? 'bg-green-500' :
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 w-full sm:w-auto">
+                            <div className={`h-2 w-2 rounded-full flex-shrink-0 ${product.profitMargin >= 20 ? 'bg-green-500' :
                               product.profitMargin >= 10 ? 'bg-yellow-500' :
                                 'bg-red-500'
                               }`} />
-                            <div>
-                              <p className="font-semibold">{product.productName}</p>
-                              <p className="text-sm text-muted-foreground">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-sm sm:text-base truncate">{product.productName}</p>
+                              <p className="text-xs sm:text-sm text-muted-foreground">
                                 {product.totalQuantitySold.toFixed(1)} KG • {product.orderCount} orders
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-6">
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground">Revenue</p>
-                              <p className="font-bold">LKR {product.totalRevenue.toFixed(2)}</p>
+                          <div className="flex items-center gap-3 sm:gap-6 w-full sm:w-auto justify-between sm:justify-end">
+                            <div className="flex items-center gap-3 sm:gap-6 flex-1 sm:flex-initial">
+                              <div className="text-left sm:text-right">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">Revenue</p>
+                                <p className="font-bold text-xs sm:text-sm">LKR {product.totalRevenue.toFixed(2)}</p>
+                              </div>
+                              <div className="text-left sm:text-right">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">Profit</p>
+                                <p className={`font-bold text-xs sm:text-sm ${product.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  LKR {product.totalProfit.toFixed(2)}
+                                </p>
+                              </div>
+                              <Badge variant={product.profitMargin >= 20 ? 'default' : product.profitMargin >= 10 ? 'secondary' : 'destructive'} className="text-[10px] sm:text-xs">
+                                {product.profitMargin.toFixed(1)}%
+                              </Badge>
                             </div>
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground">Profit</p>
-                              <p className={`font-bold ${product.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                LKR {product.totalProfit.toFixed(2)}
-                              </p>
-                            </div>
-                            <Badge variant={product.profitMargin >= 20 ? 'default' : product.profitMargin >= 10 ? 'secondary' : 'destructive'}>
-                              {product.profitMargin.toFixed(1)}%
-                            </Badge>
-                            {expandedProduct === index ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            {expandedProduct === index ? <ChevronUp className="h-4 w-4 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 flex-shrink-0" />}
                           </div>
                         </div>
 
                         {expandedProduct === index && (
-                          <div className="p-4 bg-muted/20 border-t">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="p-3 sm:p-4 bg-muted/20 border-t">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                               <div>
-                                <p className="text-xs text-muted-foreground mb-1">Total Quantity</p>
-                                <p className="font-semibold">{product.totalQuantitySold.toFixed(2)} KG</p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Total Quantity</p>
+                                <p className="font-semibold text-xs sm:text-sm">{product.totalQuantitySold.toFixed(2)} KG</p>
                               </div>
                               <div>
-                                <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
-                                <p className="font-semibold text-blue-600">LKR {product.totalRevenue.toFixed(2)}</p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Total Revenue</p>
+                                <p className="font-semibold text-blue-600 text-xs sm:text-sm">LKR {product.totalRevenue.toFixed(2)}</p>
                               </div>
                               <div>
-                                <p className="text-xs text-muted-foreground mb-1">Total Cost</p>
-                                <p className="font-semibold text-red-600">LKR {product.totalCost.toFixed(2)}</p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Total Cost</p>
+                                <p className="font-semibold text-red-600 text-xs sm:text-sm">LKR {product.totalCost.toFixed(2)}</p>
                               </div>
                               <div>
-                                <p className="text-xs text-muted-foreground mb-1">Net Profit</p>
-                                <p className={`font-semibold ${product.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Net Profit</p>
+                                <p className={`font-semibold text-xs sm:text-sm ${product.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                   LKR {product.totalProfit.toFixed(2)}
                                 </p>
                               </div>
@@ -618,65 +622,65 @@ export default function ReportsPage() {
 
               {/* Price Variance Tab */}
               {activeTab === 'prices' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Price Variance Analysis</h3>
-                    <p className="text-sm text-muted-foreground">Track selling price changes</p>
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold">Price Variance Analysis</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Track selling price changes</p>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {(report.priceVarianceAnalysis || []).map((product, index) => (
                       <Card key={index} className="shadow-md">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base">{product.productName}</CardTitle>
+                        <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                            <CardTitle className="text-sm sm:text-base truncate">{product.productName}</CardTitle>
                             {product.currentCostPrice && (
-                              <Badge variant="outline">
+                              <Badge variant="outline" className="text-[10px] sm:text-xs">
                                 Cost: LKR {product.currentCostPrice}/kg
                               </Badge>
                             )}
                           </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="text-center p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
-                              <p className="text-xs text-muted-foreground mb-1">Lowest Price</p>
-                              <p className="text-lg font-bold text-red-600">LKR {product.minPrice}/kg</p>
+                        <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0 sm:pt-0">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                            <div className="text-center p-2 sm:p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Lowest Price</p>
+                              <p className="text-sm sm:text-lg font-bold text-red-600">LKR {product.minPrice}/kg</p>
                               {product.currentCostPrice && (
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                                   {((product.minPrice - product.currentCostPrice) / product.currentCostPrice * 100).toFixed(1)}% margin
                                 </p>
                               )}
                             </div>
-                            <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                              <p className="text-xs text-muted-foreground mb-1">Average Price</p>
-                              <p className="text-lg font-bold text-blue-600">LKR {product.avgPrice}/kg</p>
+                            <div className="text-center p-2 sm:p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Average Price</p>
+                              <p className="text-sm sm:text-lg font-bold text-blue-600">LKR {product.avgPrice}/kg</p>
                               {product.currentCostPrice && (
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                                   {((product.avgPrice - product.currentCostPrice) / product.currentCostPrice * 100).toFixed(1)}% margin
                                 </p>
                               )}
                             </div>
-                            <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                              <p className="text-xs text-muted-foreground mb-1">Highest Price</p>
-                              <p className="text-lg font-bold text-green-600">LKR {product.maxPrice}/kg</p>
+                            <div className="text-center p-2 sm:p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Highest Price</p>
+                              <p className="text-sm sm:text-lg font-bold text-green-600">LKR {product.maxPrice}/kg</p>
                               {product.currentCostPrice && (
-                                <p className="text-xs text-muted-foreground mt-1">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                                   {((product.maxPrice - product.currentCostPrice) / product.currentCostPrice * 100).toFixed(1)}% margin
                                 </p>
                               )}
                             </div>
                           </div>
                           <div>
-                            <p className="text-sm font-semibold mb-2">Selling Price History</p>
-                            <div className="flex flex-wrap gap-2">
+                            <p className="text-xs sm:text-sm font-semibold mb-2">Selling Price History</p>
+                            <div className="flex flex-wrap gap-1.5 sm:gap-2">
                               {product.priceHistory.map((price, i) => (
                                 <div
                                   key={i}
-                                  className="inline-flex items-center gap-2 px-3 py-2 bg-muted rounded-lg"
+                                  className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-muted rounded-lg"
                                 >
-                                  <DollarSign className="h-4 w-4 text-primary" />
-                                  <span className="font-semibold">LKR {price.pricePerKg}/kg</span>
-                                  <Badge variant="secondary" className="ml-1">
+                                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
+                                  <span className="font-semibold text-xs sm:text-sm">LKR {price.pricePerKg}/kg</span>
+                                  <Badge variant="secondary" className="ml-1 text-[10px] sm:text-xs">
                                     {price.count}x
                                   </Badge>
                                 </div>
@@ -700,55 +704,55 @@ export default function ReportsPage() {
 
               {/* Sales Details Tab */}
               {activeTab === 'sales' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Detailed Sales Breakdown</h3>
-                    <p className="text-sm text-muted-foreground">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-3 sm:mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold">Detailed Sales Breakdown</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
                       Showing {(report.detailedSalesBreakdown || []).length} of {report.pagination?.total || 0} sales
                     </p>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
+                  <div className="overflow-x-auto scrollbar-horizontal -mx-3 sm:mx-0">
+                    <table className="w-full min-w-[800px]">
                       <thead>
                         <tr className="border-b">
-                          <th className="text-left p-3 text-sm font-semibold">Date</th>
-                          <th className="text-left p-3 text-sm font-semibold">Order #</th>
-                          <th className="text-left p-3 text-sm font-semibold">Product</th>
-                          <th className="text-right p-3 text-sm font-semibold">Qty (KG)</th>
-                          <th className="text-right p-3 text-sm font-semibold">Cost Price</th>
-                          <th className="text-right p-3 text-sm font-semibold">Sell Price</th>
-                          <th className="text-right p-3 text-sm font-semibold">Revenue</th>
-                          <th className="text-right p-3 text-sm font-semibold">Cost</th>
-                          <th className="text-right p-3 text-sm font-semibold">Profit</th>
-                          <th className="text-right p-3 text-sm font-semibold">Margin</th>
+                          <th className="text-left p-2 sm:p-3 text-xs sm:text-sm font-semibold">Date</th>
+                          <th className="text-left p-2 sm:p-3 text-xs sm:text-sm font-semibold">Order #</th>
+                          <th className="text-left p-2 sm:p-3 text-xs sm:text-sm font-semibold">Product</th>
+                          <th className="text-right p-2 sm:p-3 text-xs sm:text-sm font-semibold">Qty (KG)</th>
+                          <th className="text-right p-2 sm:p-3 text-xs sm:text-sm font-semibold">Cost Price</th>
+                          <th className="text-right p-2 sm:p-3 text-xs sm:text-sm font-semibold">Sell Price</th>
+                          <th className="text-right p-2 sm:p-3 text-xs sm:text-sm font-semibold">Revenue</th>
+                          <th className="text-right p-2 sm:p-3 text-xs sm:text-sm font-semibold">Cost</th>
+                          <th className="text-right p-2 sm:p-3 text-xs sm:text-sm font-semibold">Profit</th>
+                          <th className="text-right p-2 sm:p-3 text-xs sm:text-sm font-semibold">Margin</th>
                         </tr>
                       </thead>
                       <tbody>
                         {(report.detailedSalesBreakdown || []).map((sale) => (
                           <tr key={sale.orderItemId} className="border-b hover:bg-muted/50 transition-colors">
-                            <td className="p-3 text-sm">
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm">
                               {new Date(sale.date).toLocaleDateString()}
                             </td>
-                            <td className="p-3 text-sm font-mono">{sale.orderNumber}</td>
-                            <td className="p-3 text-sm font-medium">{sale.itemName}</td>
-                            <td className="p-3 text-sm text-right">{sale.netWeightKg}</td>
-                            <td className="p-3 text-sm text-right">
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm font-mono">{sale.orderNumber}</td>
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm font-medium truncate max-w-[150px]">{sale.itemName}</td>
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm text-right">{sale.netWeightKg}</td>
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm text-right">
                               {sale.costPrice ? `LKR ${sale.costPrice}/kg` : '-'}
                             </td>
-                            <td className="p-3 text-sm text-right font-semibold">
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm text-right font-semibold">
                               LKR {sale.pricePerKg}/kg
                             </td>
-                            <td className="p-3 text-sm text-right font-semibold text-blue-600">
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm text-right font-semibold text-blue-600">
                               LKR {sale.revenue}
                             </td>
-                            <td className="p-3 text-sm text-right text-red-600">
+                            <td className="p-2 sm:p-3 text-xs sm:text-sm text-right text-red-600">
                               {sale.cost ? `LKR ${sale.cost}` : '-'}
                             </td>
-                            <td className={`p-3 text-sm text-right font-semibold ${sale.profit !== null && sale.profit >= 0 ? 'text-green-600' : 'text-red-600'
+                            <td className={`p-2 sm:p-3 text-xs sm:text-sm text-right font-semibold ${sale.profit !== null && sale.profit >= 0 ? 'text-green-600' : 'text-red-600'
                               }`}>
                               {sale.profit !== null ? `LKR ${sale.profit}` : '-'}
                             </td>
-                            <td className="p-3 text-right">
+                            <td className="p-2 sm:p-3 text-right">
                               {sale.profitMargin !== null ? (
                                 <Badge
                                   variant={
@@ -756,11 +760,12 @@ export default function ReportsPage() {
                                       sale.profitMargin >= 10 ? 'secondary' :
                                         'destructive'
                                   }
+                                  className="text-[10px] sm:text-xs"
                                 >
                                   {sale.profitMargin.toFixed(1)}%
                                 </Badge>
                               ) : (
-                                <span className="text-sm text-muted-foreground">-</span>
+                                <span className="text-xs sm:text-sm text-muted-foreground">-</span>
                               )}
                             </td>
                           </tr>
@@ -773,17 +778,17 @@ export default function ReportsPage() {
 
               {/* NEW: Order Profit/Loss Tab */}
               {activeTab === 'orders' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Order-Level Profit/Loss Analysis</h3>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold">Order-Level Profit/Loss Analysis</h3>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                      <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                        <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                         <Select
                           value={profitStatusFilter}
                           onValueChange={(value: 'all' | 'profit' | 'loss') => setProfitStatusFilter(value)}
                         >
-                          <SelectTrigger className="w-[180px]">
+                          <SelectTrigger className="w-full sm:w-[180px] h-9 sm:h-10 text-xs sm:text-sm">
                             <SelectValue placeholder="Filter by status" />
                           </SelectTrigger>
                           <SelectContent>
@@ -793,7 +798,7 @@ export default function ReportsPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button onClick={fetchOrderProfitDetails} disabled={loadingOrders} size="sm">
+                      <Button onClick={fetchOrderProfitDetails} disabled={loadingOrders} size="sm" className="w-full sm:w-auto h-9 sm:h-10 text-xs sm:text-sm">
                         {loadingOrders ? 'Loading...' : 'Refresh'}
                       </Button>
                     </div>
@@ -811,73 +816,73 @@ export default function ReportsPage() {
                       </AlertDescription>
                     </Alert>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {orderProfitDetails.map((order) => (
                         <Card key={order.orderId} className="shadow-md hover:shadow-lg transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div className={`h-3 w-3 rounded-full ${order.totalProfit > 0 ? 'bg-green-500' :
+                          <CardContent className="p-3 sm:p-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                              <div className="flex-1 min-w-0 w-full sm:w-auto">
+                                <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                                  <div className={`h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full flex-shrink-0 ${order.totalProfit > 0 ? 'bg-green-500' :
                                     order.totalProfit < 0 ? 'bg-red-500' :
                                       'bg-gray-400'
                                     }`} />
-                                  <div>
-                                    <p className="font-bold text-lg font-mono">{order.orderNumber}</p>
-                                    <p className="text-sm text-muted-foreground">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-sm sm:text-lg font-mono truncate">{order.orderNumber}</p>
+                                    <p className="text-xs sm:text-sm text-muted-foreground">
                                       {new Date(order.orderDate).toLocaleString()} • {order.itemCount} items
                                     </p>
                                   </div>
                                 </div>
 
-                                <div className="ml-6 space-y-1">
-                                  <p className="text-sm">
+                                <div className="ml-4 sm:ml-6 space-y-1">
+                                  <p className="text-xs sm:text-sm">
                                     <span className="text-muted-foreground">Cashier:</span>{' '}
                                     <span className="font-medium">{order.cashierName}</span>
-                                    <span className="text-muted-foreground ml-2">({order.cashierEmail})</span>
+                                    <span className="text-muted-foreground ml-1 sm:ml-2 text-[10px] sm:text-xs">({order.cashierEmail})</span>
                                   </p>
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-5 gap-4 text-right min-w-[600px]">
+                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 text-left sm:text-right w-full sm:w-auto sm:min-w-[600px]">
                                 <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Subtotal</p>
-                                  <p className="font-bold text-sm">LKR {order.subtotal.toFixed(2)}</p>
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Subtotal</p>
+                                  <p className="font-bold text-xs sm:text-sm">LKR {order.subtotal.toFixed(2)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Total</p>
-                                  <p className="font-bold text-blue-600">LKR {order.total.toFixed(2)}</p>
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Total</p>
+                                  <p className="font-bold text-blue-600 text-xs sm:text-sm">LKR {order.total.toFixed(2)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Cost</p>
-                                  <p className="font-bold text-red-600">LKR {order.totalCost.toFixed(2)}</p>
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Cost</p>
+                                  <p className="font-bold text-red-600 text-xs sm:text-sm">LKR {order.totalCost.toFixed(2)}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Profit/Loss</p>
-                                  <p className={`font-bold ${order.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Profit/Loss</p>
+                                  <p className={`font-bold text-xs sm:text-sm ${order.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'
                                     }`}>
                                     {order.totalProfit >= 0 ? (
-                                      <span className="flex items-center justify-end gap-1">
-                                        <TrendingUp className="h-4 w-4" />
+                                      <span className="flex items-center gap-1 sm:justify-end">
+                                        <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4" />
                                         LKR {order.totalProfit.toFixed(2)}
                                       </span>
                                     ) : (
-                                      <span className="flex items-center justify-end gap-1">
-                                        <TrendingDown className="h-4 w-4" />
+                                      <span className="flex items-center gap-1 sm:justify-end">
+                                        <TrendingDown className="h-3 w-3 sm:h-4 sm:w-4" />
                                         LKR {Math.abs(order.totalProfit).toFixed(2)}
                                       </span>
                                     )}
                                   </p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Margin</p>
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Margin</p>
                                   <Badge
                                     variant={
                                       order.profitMargin >= 20 ? 'default' :
                                         order.profitMargin >= 10 ? 'secondary' :
                                           'destructive'
                                     }
-                                    className="font-bold"
+                                    className="font-bold text-[10px] sm:text-xs"
                                   >
                                     {order.profitMargin.toFixed(1)}%
                                   </Badge>
@@ -894,17 +899,17 @@ export default function ReportsPage() {
 
               {/* NEW: Price Change History Tab */}
               {activeTab === 'history' && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Complete Price Change History</h3>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+                    <h3 className="text-base sm:text-lg font-semibold">Complete Price Change History</h3>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                      <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                        <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                         <Select
                           value={priceChangeTypeFilter}
                           onValueChange={(value: 'all' | 'cost_price' | 'selling_price') => setPriceChangeTypeFilter(value)}
                         >
-                          <SelectTrigger className="w-[200px]">
+                          <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 text-xs sm:text-sm">
                             <SelectValue placeholder="Filter by type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -914,7 +919,7 @@ export default function ReportsPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button onClick={fetchPriceChangeHistory} disabled={loadingPriceHistory} size="sm">
+                      <Button onClick={fetchPriceChangeHistory} disabled={loadingPriceHistory} size="sm" className="w-full sm:w-auto h-9 sm:h-10 text-xs sm:text-sm">
                         {loadingPriceHistory ? 'Loading...' : 'Refresh'}
                       </Button>
                     </div>
@@ -932,77 +937,77 @@ export default function ReportsPage() {
                       </AlertDescription>
                     </Alert>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       {priceChangeHistory.map((change) => (
                         <Card key={change.id} className="shadow-md hover:shadow-lg transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <div className={`px-3 py-1 rounded-full text-xs font-semibold ${change.changeType === 'cost_price'
+                          <CardContent className="p-3 sm:p-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 sm:gap-0">
+                              <div className="flex-1 min-w-0 w-full sm:w-auto">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                                  <div className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold flex-shrink-0 ${change.changeType === 'cost_price'
                                     ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
                                     : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                                     }`}>
                                     {change.changeType === 'cost_price' ? 'Cost Price' : 'Selling Price'}
                                   </div>
-                                  <div>
-                                    <p className="font-bold text-lg">{change.productName}</p>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                      {change.sku && <span>SKU: {change.sku}</span>}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-bold text-sm sm:text-lg truncate">{change.productName}</p>
+                                    <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground">
+                                      {change.sku && <span className="truncate">SKU: {change.sku}</span>}
                                       {change.category && <span>• {change.category}</span>}
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="ml-3 space-y-2 mt-3">
-                                  <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm text-muted-foreground">Changed by:</span>
-                                      <span className="font-medium">{change.userName}</span>
-                                      <span className="text-muted-foreground">({change.userEmail})</span>
+                                <div className="ml-0 sm:ml-3 space-y-2 mt-2 sm:mt-3">
+                                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                                    <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+                                      <span className="text-xs sm:text-sm text-muted-foreground">Changed by:</span>
+                                      <span className="font-medium text-xs sm:text-sm">{change.userName}</span>
+                                      <span className="text-muted-foreground text-[10px] sm:text-xs">({change.userEmail})</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <Calendar className="h-3 w-3 text-muted-foreground" />
-                                      <span className="text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-1.5 sm:gap-2">
+                                      <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                      <span className="text-xs sm:text-sm text-muted-foreground">
                                         {new Date(change.createdAt).toLocaleString()}
                                       </span>
                                     </div>
                                   </div>
 
                                   {change.notes && (
-                                    <div className="bg-muted/50 p-3 rounded-lg">
-                                      <p className="text-xs text-muted-foreground mb-1">Note:</p>
-                                      <p className="text-sm italic">{change.notes}</p>
+                                    <div className="bg-muted/50 p-2 sm:p-3 rounded-lg">
+                                      <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Note:</p>
+                                      <p className="text-xs sm:text-sm italic">{change.notes}</p>
                                     </div>
                                   )}
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-4 ml-4">
-                                <div className="text-right">
-                                  <p className="text-xs text-muted-foreground mb-1">Old Price</p>
-                                  <p className="font-bold text-lg text-red-600">LKR {change.oldPrice.toFixed(2)}</p>
+                              <div className="flex items-center gap-2 sm:gap-4 ml-0 sm:ml-4 w-full sm:w-auto justify-between sm:justify-end flex-wrap sm:flex-nowrap">
+                                <div className="text-left sm:text-right">
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Old Price</p>
+                                  <p className="font-bold text-sm sm:text-lg text-red-600">LKR {change.oldPrice.toFixed(2)}</p>
                                 </div>
 
                                 <div className="flex items-center">
                                   {change.priceChange > 0 ? (
-                                    <TrendingUp className="h-6 w-6 text-green-500" />
+                                    <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-green-500" />
                                   ) : change.priceChange < 0 ? (
-                                    <TrendingDown className="h-6 w-6 text-red-500" />
+                                    <TrendingDown className="h-4 w-4 sm:h-6 sm:w-6 text-red-500" />
                                   ) : (
-                                    <span className="h-6 w-6 text-gray-400">→</span>
+                                    <span className="h-4 w-4 sm:h-6 sm:w-6 text-gray-400">→</span>
                                   )}
                                 </div>
 
-                                <div className="text-right">
-                                  <p className="text-xs text-muted-foreground mb-1">New Price</p>
-                                  <p className="font-bold text-lg text-green-600">LKR {change.newPrice.toFixed(2)}</p>
+                                <div className="text-left sm:text-right">
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">New Price</p>
+                                  <p className="font-bold text-sm sm:text-lg text-green-600">LKR {change.newPrice.toFixed(2)}</p>
                                 </div>
 
-                                <div className="text-right min-w-[120px]">
-                                  <p className="text-xs text-muted-foreground mb-1">Change</p>
+                                <div className="text-left sm:text-right sm:min-w-[120px]">
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Change</p>
                                   <div>
-                                    <p className={`font-bold ${change.priceChange > 0 ? 'text-green-600' :
+                                    <p className={`font-bold text-xs sm:text-sm ${change.priceChange > 0 ? 'text-green-600' :
                                       change.priceChange < 0 ? 'text-red-600' :
                                         'text-gray-600'
                                       }`}>
@@ -1015,7 +1020,7 @@ export default function ReportsPage() {
                                           change.percentChange < 0 ? 'destructive' :
                                             'secondary'
                                       }
-                                      className="mt-1"
+                                      className="mt-1 text-[10px] sm:text-xs"
                                     >
                                       {change.percentChange > 0 ? '+' : ''}
                                       {change.percentChange.toFixed(1)}%

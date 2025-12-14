@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Plus, Calculator, ShoppingCart, Search, Package, Minus, Scale, CreditCard, X, AlertTriangle, Edit2, PackageX, CheckCircle2, Grid3x3, User, Printer, Shield, RefreshCw, LayoutGrid, List } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Trash2, Plus, Calculator, ShoppingCart, Search, Package, Minus, Scale, CreditCard, X, AlertTriangle, Edit2, PackageX, CheckCircle2, Grid3x3, User, Printer, Shield, RefreshCw, LayoutGrid, List, ChevronUp } from 'lucide-react';
 import PaymentDialog from './PaymentDialog';
 import RefundDialog from './RefundDialog';
 import { CustomerSelection, Customer } from './CustomerSelection';
@@ -977,23 +978,271 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
   const isStockSufficient = selectedProduct && calculated ?
     calculated.netWeightKg <= remainingStockForDialog : true;
 
+  const renderCartContent = (isMobile = false) => (
+    <div className={`flex flex-col h-full bg-background/50 backdrop-blur-sm overflow-hidden ${isMobile ? '' : 'lg:border-l border-t lg:border-t-0 shadow-[0_-5px_30px_rgba(0,0,0,0.03)] lg:shadow-[-5px_0_30px_rgba(0,0,0,0.03)] rounded-none'}`}>
+      {!isMobile && (
+        <div className="flex-none p-2 bg-background border-b z-20 shadow-sm">
+          <div className="flex items-center gap-2 overflow-x-auto p-1 scrollbar-horizontal">
+            {orderTabs.map(tab => (
+              <div
+                key={tab.id}
+                onClick={() => setActiveTabId(tab.id)}
+                className={`
+                  relative flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-lg cursor-pointer transition-all min-w-[110px] sm:min-w-[130px] max-w-[160px] sm:max-w-[180px] flex-shrink-0 group border select-none
+                  ${activeTabId === tab.id
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-medium border-indigo-600'
+                    : 'bg-background hover:bg-zinc-50 text-zinc-600 border-zinc-200'
+                  }
+                `}
+              >
+                <div className="flex-1 truncate text-sm">
+                  {tab.name}
+                </div>
+                {tab.cart.length > 0 && (
+                  <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${activeTabId === tab.id ? 'bg-white text-primary' : 'bg-primary/10 text-primary'}`}>
+                    {tab.cart.length}
+                  </span>
+                )}
+                {orderTabs.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeTab(tab.id);
+                    }}
+                    className={`opacity-0 group-hover:opacity-100 rounded p-0.5 transition-all ${activeTabId === tab.id ? 'hover:bg-white/20 hover:text-white' : 'hover:bg-destructive/10 hover:text-destructive'}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <Button onClick={createNewTab} size="icon" variant="ghost" className="h-10 w-10 rounded-full flex-none hover:bg-primary/10 hover:text-primary border border-dashed border-border">
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-none px-3 sm:px-4 md:px-5 py-2 sm:py-3 border-b bg-muted/20 flex flex-col gap-2 sm:gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="font-bold text-lg sm:text-xl md:text-2xl leading-none text-foreground tracking-tight truncate">{activeTab?.name}</h2>
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <div className="w-full sm:w-auto sm:min-w-[200px]">
+              <CustomerSelection
+                selectedCustomer={activeTab?.customer || null}
+                onSelectCustomer={updateActiveTabCustomer}
+              />
+            </div>
+          </div>
+        </div>
+        <span className="text-xs text-muted-foreground">{new Date().toLocaleDateString()}</span>
+
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2 sm:space-y-3 bg-muted/10 min-h-0 scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/30">
+        {!activeTab || activeTab.cart.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground space-y-6 p-8 opacity-60">
+            <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-2 shadow-inner">
+              <ShoppingCart className="h-10 w-10 text-muted-foreground/50" />
+            </div>
+            <div>
+              <p className="font-medium text-lg text-foreground">Cart is empty</p>
+              <p className="text-sm max-w-[200px] mx-auto mt-2 leading-relaxed">Select products from the menu to start building this order.</p>
+            </div>
+          </div>
+        ) : (
+          activeTab.cart.map((item) => {
+            const product = products.find(p => p.id === item.productId);
+            const isUnitBased = product?.unitType === 'unit';
+            const requiredStock = item.netWeightKg;
+            const hasStock = product ? product.stockQuantity >= requiredStock : true;
+
+            return (
+              <div
+                key={item.id}
+                className={`
+                    relative group bg-background border border-border/60 rounded-xl p-3 shadow-sm transition-all duration-200
+                    ${!hasStock ? 'border-destructive/50 bg-destructive/5' : 'hover:border-primary/30 hover:shadow-md'}
+                  `}
+              >
+                <div className="flex justify-between items-start gap-3 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <h5 className="font-semibold text-sm text-foreground truncate pr-6">{item.itemName}</h5>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                      <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider">
+                        {item.quantityType === 'kg' ? 'Weight' : 'Unit'}
+                      </span>
+                      <span>@ LKR {item.pricePerKg.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-foreground">LKR {item.finalTotal.toFixed(2)}</p>
+                    {item.itemDiscountPercent > 0 && (
+                      <div className="flex justify-end items-center gap-1 text-[10px] text-destructive font-medium">
+                        <span className="line-through opacity-70">{item.baseTotal.toFixed(2)}</span>
+                        <span className="bg-destructive/10 px-1 rounded">-{item.itemDiscountPercent}%</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/60">
+                  <div className="flex items-center gap-3">
+                    {isUnitBased ? (
+                      <div className="flex items-center bg-muted/40 rounded-lg border h-8 shadow-sm">
+                        <button
+                          className="px-2.5 h-full hover:bg-background hover:text-destructive transition-all disabled:opacity-30 rounded-l-lg hover:shadow-sm"
+                          onClick={() => updateCartItemQuantity(item.id, item.itemWeightKg - 1)}
+                          disabled={item.itemWeightKg <= 1}
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-1/2 bg-border my-auto"></div>
+                        <span className="px-2 text-sm font-bold min-w-[2rem] text-center tabular-nums">
+                          {item.itemWeightKg}
+                        </span>
+                        <div className="w-px h-1/2 bg-border my-auto"></div>
+                        <button
+                          className="px-2.5 h-full hover:bg-background hover:text-green-600 transition-all disabled:opacity-30 rounded-r-lg hover:shadow-sm"
+                          onClick={() => updateCartItemQuantity(item.id, item.itemWeightKg + 1)}
+                          disabled={product ? item.itemWeightKg >= product.stockQuantity : false}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Net Weight</span>
+                          <div className="flex items-baseline gap-1 bg-muted/30 px-2 py-0.5 rounded border border-border/50">
+                            <span className="font-bold text-sm tabular-nums">{item.netWeightKg}</span>
+                            <span className="text-[10px] text-muted-foreground">KG</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {item.boxCount > 0 && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-300 rounded-md border border-blue-100 dark:border-blue-800 text-[10px] font-medium">
+                        <Package className="h-3 w-3" />
+                        {item.boxCount} Box
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFromCart(item.id)}
+                    className="h-8 w-8 p-0 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {!hasStock && product && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-destructive font-medium bg-destructive/10 px-2 py-1.5 rounded-md border border-destructive/20 animate-pulse">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span>Insufficient Stock (Have: {product.stockQuantity})</span>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="flex-none bg-background border-t shadow-[0_-8px_30px_rgba(0,0,0,0.05)] z-20 p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4 md:space-y-5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 md:gap-4">
+          <div className="relative flex-1 group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span className="text-muted-foreground text-xs sm:text-sm font-medium">%</span>
+            </div>
+            <Input
+              type="number"
+              min="0"
+              max={permissions?.canApplyDiscount ? permissions.maxDiscountPercent : 0}
+              placeholder={permissions?.canApplyDiscount ? "Add Discount" : "No permission"}
+              className="pl-7 sm:pl-8 h-9 sm:h-10 text-xs sm:text-sm bg-muted/30 border-transparent hover:bg-muted/50 focus:bg-background focus:border-primary/50 transition-all font-medium"
+              value={activeTab?.orderDiscount || ''}
+              onChange={(e) => updateActiveTabDiscount(parseFloat(e.target.value) || 0)}
+              disabled={!permissions?.canApplyDiscount}
+              readOnly={!permissions?.canApplyDiscount}
+            />
+          </div>
+          <div className="text-xs text-right space-y-0.5 flex-shrink-0 sm:min-w-[100px]">
+            <p className="text-muted-foreground">Count: <span className="font-bold text-foreground">{activeTab?.cart.length || 0}</span></p>
+            <p className="text-muted-foreground">Total Kg: <span className="font-bold text-foreground">{activeTab?.cart.reduce((acc, item) => acc + item.netWeightKg, 0).toFixed(3) || '0.000'}</span></p>
+          </div>
+        </div>
+
+        <Separator className="bg-border/60" />
+
+        <div className="space-y-1.5 sm:space-y-2">
+          <div className="flex justify-between text-xs sm:text-sm">
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="font-medium">LKR {orderSubtotal.toFixed(2)}</span>
+          </div>
+
+          {orderDiscountAmount > 0 && (
+            <div className="flex justify-between text-xs sm:text-sm text-destructive animate-in fade-in slide-in-from-right-5 duration-300">
+              <span className="font-medium">Discount ({activeTab?.orderDiscount}%)</span>
+              <span>- LKR {orderDiscountAmount.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between items-end pt-1.5 sm:pt-2">
+            <span className="font-bold text-base sm:text-lg text-foreground/80">Total</span>
+            <div className="text-right">
+              <span className="block text-2xl sm:text-3xl font-black text-primary leading-none tracking-tight">
+                <span className="text-sm sm:text-base font-bold align-top mr-1 opacity-70">LKR</span>
+                {orderTotal.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <Button
+          onClick={initiateCheckout}
+          disabled={loading || !activeTab || activeTab.cart.length === 0}
+          size="lg"
+          className="w-full h-12 sm:h-14 text-base sm:text-lg font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all active:scale-[0.98] rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
+              <span>Processing...</span>
+            </div>
+          ) : (
+            <>
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 mr-1.5 sm:mr-2" />
+              <span className="hidden xs:inline">Charge </span>LKR {orderTotal.toFixed(2)}
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex h-full gap-4">
+    <div className="flex flex-col lg:flex-row h-full gap-4">
       {/* LEFT PANEL - Products & Navigation - Flexible Width */}
-      <div className="flex-1 flex flex-col min-w-0 gap-4 h-full">
+      <div className="flex-1 flex flex-col min-w-0 gap-4 h-full lg:h-auto lg:max-h-full">
 
         {/* Permission Status Indicator */}
         <div className="flex-none flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Shield className="h-4 w-4" />
-            <span>Permissions: {permissions ? (permissions.canEditPrices ? 'Edit Prices ✓' : 'Edit Prices ✗') : 'LOADING...'}</span>
-            <span>•</span>
-            <span>Discounts: {permissions?.canApplyDiscount ? `${permissions.maxDiscountPercent || 0}%` : 'Disabled'}</span>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+            <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+            <span className="whitespace-nowrap">Permissions: {permissions ? (permissions.canEditPrices ? 'Edit Prices ✓' : 'Edit Prices ✗') : 'LOADING...'}</span>
+            <span className="hidden sm:inline">•</span>
+            <span className="whitespace-nowrap">Discounts: {permissions?.canApplyDiscount ? `${permissions.maxDiscountPercent || 0}%` : 'Disabled'}</span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => fetchPermissions()}
-              className="h-6 px-2"
+              className="h-6 px-2 flex-shrink-0"
             >
               <RefreshCw className="h-3 w-3" />
             </Button>
@@ -1001,9 +1250,9 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         </div>
 
         {/* Top Navigation Bar: Categories & Search */}
-        <div className="flex-none flex flex-col md:flex-row gap-3 items-center justify-between pb-2">
+        <div className="flex-none flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between pb-2">
           {/* Search Bar - Wider on desktop */}
-          <div className="relative w-full md:max-w-md order-2 md:order-1">
+          <div className="relative w-full sm:max-w-md order-2 sm:order-1">
             <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none">
               <Search className="h-4 w-4" />
             </div>
@@ -1024,13 +1273,13 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
           </div>
 
           {/* Category Filters - Chips */}
-          <div className="w-full md:w-auto overflow-x-auto pb-1 md:pb-0 order-1 md:order-2">
-            <div className="flex items-center gap-2">
+          <div className="w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0 order-1 sm:order-2 scrollbar-horizontal">
+            <div className="flex items-center gap-2 min-w-max">
               <Button
                 variant={selectedCategory === 'all' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setSelectedCategory('all')}
-                className={`rounded-full px-5 h-9 text-sm font-semibold transition-all shadow-sm border ${selectedCategory === 'all'
+                className={`flex-shrink-0 rounded-full px-5 h-9 text-sm font-semibold transition-all shadow-sm border ${selectedCategory === 'all'
                   ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 shadow-md shadow-teal-600/20'
                   : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300'
                   }`}
@@ -1045,7 +1294,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
                     variant={isSelected ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setSelectedCategory(cat.name)}
-                    className={`rounded-full px-5 h-9 text-sm font-semibold whitespace-nowrap transition-all shadow-sm border ${isSelected
+                    className={`flex-shrink-0 rounded-full px-5 h-9 text-sm font-semibold whitespace-nowrap transition-all shadow-sm border ${isSelected
                       ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-700 shadow-md shadow-teal-600/20'
                       : 'bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300'
                       }`}
@@ -1084,7 +1333,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4 pb-20">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-4 pb-20">
               {filteredProducts.map((product) => {
                 const remainingStock = getRemainingStock(product.id);
                 const isOutOfStock = remainingStock <= 0.001;
@@ -1202,260 +1451,36 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         </div>
       </div>
 
-      {/* RIGHT PANEL - Cart & Checkout - Fixed Width */}
-      <div className="w-[380px] xl:w-[440px] flex-none flex flex-col bg-background/50 border-l backdrop-blur-sm h-full overflow-hidden relative z-10 shadow-[-5px_0_30px_rgba(0,0,0,0.03)]">
-        {/* Order Tabs Header */}
-        <div className="flex-none p-2 bg-background border-b z-20 shadow-sm">
-          <div className="flex items-center gap-2 overflow-x-auto p-1 scrollbar-hide">
-            {orderTabs.map(tab => (
-              <div
-                key={tab.id}
-                onClick={() => setActiveTabId(tab.id)}
-                className={`
-                  relative flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer transition-all min-w-[130px] max-w-[180px] group border select-none
-                  ${activeTabId === tab.id
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-medium border-indigo-600'
-                    : 'bg-background hover:bg-zinc-50 text-zinc-600 border-zinc-200'
-                  }
-                `}
-              >
-                <div className="flex-1 truncate text-sm">
-                  {tab.name}
-                </div>
-                {tab.cart.length > 0 && (
-                  <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${activeTabId === tab.id ? 'bg-white text-primary' : 'bg-primary/10 text-primary'}`}>
-                    {tab.cart.length}
-                  </span>
-                )}
-                {orderTabs.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      closeTab(tab.id);
-                    }}
-                    className={`opacity-0 group-hover:opacity-100 rounded p-0.5 transition-all ${activeTabId === tab.id ? 'hover:bg-white/20 hover:text-white' : 'hover:bg-destructive/10 hover:text-destructive'}`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )}
+      {/* RIGHT PANEL - Cart & Checkout */}
+      {/* Desktop: Always visible sidebar */}
+      <div className="hidden lg:flex w-[380px] xl:w-[440px] flex-none flex-col bg-background/50 border-l backdrop-blur-sm h-full overflow-hidden relative z-10 shadow-[-5px_0_30px_rgba(0,0,0,0.03)]">
+        {renderCartContent()}
+      </div>
+
+      {/* Mobile: Sticky Bottom Bar & Sheet */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t p-3 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] pb-safe">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button size="lg" className="w-full h-14 flex items-center justify-between px-4 bg-primary text-primary-foreground shadow-lg rounded-xl">
+              <div className="flex flex-col items-start">
+                <span className="text-xs opacity-90 font-medium"> Total ({activeTab?.cart.length || 0} items)</span>
+                <span className="text-lg font-bold">LKR {orderTotal.toFixed(2)}</span>
               </div>
-            ))}
-            <Button onClick={createNewTab} size="icon" variant="ghost" className="h-10 w-10 rounded-full flex-none hover:bg-primary/10 hover:text-primary border border-dashed border-border">
-              <Plus className="h-5 w-5" />
+              <div className="flex items-center gap-2 font-semibold">
+                View Cart <ChevronUp className="h-5 w-5" />
+              </div>
             </Button>
-          </div>
-        </div>
-
-        {/* Order Info Bar */}
-        <div className="flex-none px-5 py-3 border-b bg-muted/20 flex flex-col gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-bold text-2xl leading-none text-foreground tracking-tight">{activeTab?.name}</h2>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="h-[90vh] p-0 flex flex-col rounded-t-2xl">
+            <SheetHeader className="px-4 py-3 border-b">
+              <SheetTitle>Current Order</SheetTitle>
+              <SheetDescription>Verify items and checkout</SheetDescription>
+            </SheetHeader>
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {renderCartContent(true)}
             </div>
-            <div className="flex gap-2">
-              {/* Customer Selection */}
-              <div className="w-full">
-                <CustomerSelection
-                  selectedCustomer={activeTab?.customer || null}
-                  onSelectCustomer={updateActiveTabCustomer}
-                />
-              </div>
-            </div>
-          </div>
-          <span className="text-xs">{new Date().toLocaleDateString()}</span>
-
-        </div>
-
-        {/* Cart Items List - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/10 min-h-0 scrollbar-thin scrollbar-thumb-muted-foreground/10 hover:scrollbar-thumb-muted-foreground/30">
-          {!activeTab || activeTab.cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground space-y-6 p-8 opacity-60">
-              <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-2 shadow-inner">
-                <ShoppingCart className="h-10 w-10 text-muted-foreground/50" />
-              </div>
-              <div>
-                <p className="font-medium text-lg text-foreground">Cart is empty</p>
-                <p className="text-sm max-w-[200px] mx-auto mt-2 leading-relaxed">Select products from the menu to start building this order.</p>
-              </div>
-            </div>
-          ) : (
-            activeTab.cart.map((item) => {
-              const product = products.find(p => p.id === item.productId);
-              const isUnitBased = product?.unitType === 'unit';
-              const requiredStock = item.netWeightKg;
-              const hasStock = product ? product.stockQuantity >= requiredStock : true;
-
-              return (
-                <div
-                  key={item.id}
-                  className={`
-                    relative group bg-background border border-border/60 rounded-xl p-3 shadow-sm transition-all duration-200
-                    ${!hasStock ? 'border-destructive/50 bg-destructive/5' : 'hover:border-primary/30 hover:shadow-md'}
-                  `}
-                >
-                  <div className="flex justify-between items-start gap-3 mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h5 className="font-semibold text-sm text-foreground truncate pr-6">{item.itemName}</h5>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                        <span className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider">
-                          {item.quantityType === 'kg' ? 'Weight' : 'Unit'}
-                        </span>
-                        <span>@ LKR {item.pricePerKg.toFixed(2)}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-foreground">LKR {item.finalTotal.toFixed(2)}</p>
-                      {item.itemDiscountPercent > 0 && (
-                        <div className="flex justify-end items-center gap-1 text-[10px] text-destructive font-medium">
-                          <span className="line-through opacity-70">{item.baseTotal.toFixed(2)}</span>
-                          <span className="bg-destructive/10 px-1 rounded">-{item.itemDiscountPercent}%</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/60">
-                    {/* Quantity Controls or Display */}
-                    <div className="flex items-center gap-3">
-                      {isUnitBased ? (
-                        <div className="flex items-center bg-muted/40 rounded-lg border h-8 shadow-sm">
-                          <button
-                            className="px-2.5 h-full hover:bg-background hover:text-destructive transition-all disabled:opacity-30 rounded-l-lg hover:shadow-sm"
-                            onClick={() => updateCartItemQuantity(item.id, item.itemWeightKg - 1)}
-                            disabled={item.itemWeightKg <= 1}
-                          >
-                            <Minus className="h-3.5 w-3.5" />
-                          </button>
-                          <div className="w-px h-1/2 bg-border my-auto"></div>
-                          <span className="px-2 text-sm font-bold min-w-[2rem] text-center tabular-nums">
-                            {item.itemWeightKg}
-                          </span>
-                          <div className="w-px h-1/2 bg-border my-auto"></div>
-                          <button
-                            className="px-2.5 h-full hover:bg-background hover:text-green-600 transition-all disabled:opacity-30 rounded-r-lg hover:shadow-sm"
-                            onClick={() => updateCartItemQuantity(item.id, item.itemWeightKg + 1)}
-                            disabled={product ? item.itemWeightKg >= product.stockQuantity : false}
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex flex-col">
-                            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Net Weight</span>
-                            <div className="flex items-baseline gap-1 bg-muted/30 px-2 py-0.5 rounded border border-border/50">
-                              <span className="font-bold text-sm tabular-nums">{item.netWeightKg}</span>
-                              <span className="text-[10px] text-muted-foreground">KG</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Box Info if applicable */}
-                      {item.boxCount > 0 && (
-                        <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/10 text-blue-700 dark:text-blue-300 rounded-md border border-blue-100 dark:border-blue-800 text-[10px] font-medium">
-                          <Package className="h-3 w-3" />
-                          {item.boxCount} Box
-                        </div>
-                      )}
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFromCart(item.id)}
-                      className="h-8 w-8 p-0 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Stock Warning */}
-                  {!hasStock && product && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-destructive font-medium bg-destructive/10 px-2 py-1.5 rounded-md border border-destructive/20 animate-pulse">
-                      <AlertTriangle className="h-3.5 w-3.5" />
-                      <span>Insufficient Stock (Have: {product.stockQuantity})</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Cart Footer - Fixed Bottom Section */}
-        <div className="flex-none bg-background border-t shadow-[0_-8px_30px_rgba(0,0,0,0.05)] z-20 p-5 space-y-5">
-          {/* Discount Input */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <span className="text-muted-foreground text-sm font-medium">%</span>
-              </div>
-              <Input
-                type="number"
-                min="0"
-                max={permissions?.canApplyDiscount ? permissions.maxDiscountPercent : 0}
-                placeholder={permissions?.canApplyDiscount ? "Add Discount" : "No permission"}
-                className="pl-8 h-10 text-sm bg-muted/30 border-transparent hover:bg-muted/50 focus:bg-background focus:border-primary/50 transition-all font-medium"
-                value={activeTab?.orderDiscount || ''}
-                onChange={(e) => updateActiveTabDiscount(parseFloat(e.target.value) || 0)}
-                disabled={!permissions?.canApplyDiscount}
-                readOnly={!permissions?.canApplyDiscount}
-              />
-            </div>
-            <div className="text-xs text-right space-y-0.5">
-              <p className="text-muted-foreground">Count: <span className="font-bold text-foreground">{activeTab?.cart.length || 0}</span></p>
-              <p className="text-muted-foreground">Total Kg: <span className="font-bold text-foreground">{activeTab?.cart.reduce((acc, item) => acc + item.netWeightKg, 0).toFixed(3) || '0.000'}</span></p>
-            </div>
-          </div>
-
-          <Separator className="bg-border/60" />
-
-          {/* Totals */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">LKR {orderSubtotal.toFixed(2)}</span>
-            </div>
-
-            {orderDiscountAmount > 0 && (
-              <div className="flex justify-between text-sm text-destructive animate-in fade-in slide-in-from-right-5 duration-300">
-                <span className="font-medium">Discount ({activeTab?.orderDiscount}%)</span>
-                <span>- LKR {orderDiscountAmount.toFixed(2)}</span>
-              </div>
-            )}
-
-            <div className="flex justify-between items-end pt-2">
-              <span className="font-bold text-lg text-foreground/80">Total</span>
-              <div className="text-right">
-                <span className="block text-3xl font-black text-primary leading-none tracking-tight">
-                  <span className="text-base font-bold align-top mr-1 opacity-70">LKR</span>
-                  {orderTotal.toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Checkout Button */}
-          <Button
-            onClick={initiateCheckout}
-            disabled={loading || !activeTab || activeTab.cart.length === 0}
-            size="lg"
-            className="w-full h-14 text-lg font-bold shadow-lg shadow-blue-600/20 hover:shadow-xl hover:shadow-blue-600/30 transition-all active:scale-[0.98] rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {loading ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>Processing...</span>
-              </div>
-            ) : (
-              <>
-                <CreditCard className="h-5 w-5 mr-2" />
-                Charge LKR {orderTotal.toFixed(2)}
-              </>
-            )}
-          </Button>
-        </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* Dialogs */}

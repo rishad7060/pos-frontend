@@ -23,7 +23,7 @@ export default function SettingsPage() {
       icon: Shield,
       href: '/admin/settings/permissions',
       color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-50 dark:bg-blue-950',
+      bgColor: 'bg-blue-50 dark:bg-blue-250',
     },
     {
       title: 'Printer Settings',
@@ -31,20 +31,17 @@ export default function SettingsPage() {
       icon: Printer,
       href: '/admin/settings/printer',
       color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-50 dark:bg-purple-950',
+      bgColor: 'bg-purple-50 dark:bg-purple-250',
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <Button variant="ghost" onClick={() => router.push('/admin')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="rounded-full bg-primary p-2">
-            <Settings className="h-5 w-5 text-primary-foreground" />
-          </div>
           <div>
             <h1 className="text-2xl font-bold">System Settings</h1>
             <p className="text-sm text-muted-foreground">Configure your POS system</p>
