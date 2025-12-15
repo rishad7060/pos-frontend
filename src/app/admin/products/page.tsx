@@ -978,8 +978,8 @@ export default function ProductsPage() {
                           </div>
 
                           {formPrice && formCostPrice && (
-                            <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900">
-                              <AlertDescription className="text-sm text-green-800 dark:text-green-300">
+                            <Alert className="bg-green-50 border-green-200">
+                              <AlertDescription className="text-sm text-green-800">
                                 <div className="font-semibold">Profit Margin</div>
                                 <div className="mt-1">
                                   LKR {(parseFloat(formPrice) - parseFloat(formCostPrice)).toFixed(2)} per {formUnitType === 'weight' ? 'KG' : 'unit'}
