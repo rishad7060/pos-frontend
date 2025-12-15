@@ -416,25 +416,26 @@ export default function POSPage() {
           <div className="w-full px-3 sm:px-4 md:px-6 py-2 sm:py-3">
             <div className="flex items-center justify-between gap-2 sm:gap-4">
               <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                <div className="rounded-xl bg-primary text-primary-foreground p-2 sm:p-2.5 shadow-lg shadow-primary/20 flex-shrink-0">
-                  <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" />
+                <div className="flex-shrink-0">
+                  <img
+                    src="/fd-point-logo.jpg"
+                    alt="FD POINT"
+                    className="h-10 sm:h-14 w-auto rounded-lg object-contain bg-white shadow-sm border border-slate-100 p-0.5"
+                  />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-lg sm:text-xl font-bold leading-none tracking-tight truncate">FD-POS</h1>
-                  <div className="flex items-center gap-2 mt-1 sm:mt-1.5">
-                    {registrySession ? (
-                      <span className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-green-800 dark:text-green-600 bg-green-10 dark:bg-green-400/20 px-1.5 sm:px-2 py-0.5 rounded-full border border-green-50 dark:border-green-400 whitespace-nowrap">
-                        <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-800 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-full w-full bg-green-500"></span>
-                        </span>
-                        <span className="hidden xs:inline">Registry Open</span>
-                        <span className="xs:hidden">Open</span>
+                <div className="flex items-center">
+                  {registrySession ? (
+                    <span className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-green-800 dark:text-green-600 bg-green-10 dark:bg-green-400/20 px-1.5 sm:px-2 py-0.5 rounded-full border border-green-50 dark:border-green-400 whitespace-nowrap">
+                      <span className="relative flex h-1.5 w-1.5 sm:h-2 sm:w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-800 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-full w-full bg-green-500"></span>
                       </span>
-                    ) : (
-                      <span className="text-[10px] sm:text-xs text-muted-foreground bg-muted px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap">Shared Registry</span>
-                    )}
-                  </div>
+                      <span className="hidden xs:inline">Registry Open</span>
+                      <span className="xs:hidden">Open</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] sm:text-xs text-muted-foreground bg-muted px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap">Shared Registry</span>
+                  )}
                 </div>
               </div>
 
