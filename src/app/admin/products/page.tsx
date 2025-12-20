@@ -177,7 +177,7 @@ export default function ProductsPage() {
 
       const method = editingCategory ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -209,7 +209,7 @@ export default function ProductsPage() {
     if (!categoryToDelete) return;
 
     try {
-      const response = await fetch(`/api/categories?id=${categoryToDelete.id}`, {
+      const response = await fetchWithAuth(`/api/categories?id=${categoryToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -374,7 +374,7 @@ export default function ProductsPage() {
         throw new Error('Stock quantity cannot be negative');
       }
 
-      const response = await fetch(`/api/products?id=${stockAdjustProduct.id}`, {
+      const response = await fetchWithAuth(`/api/products?id=${stockAdjustProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stockQuantity: newStock }),
@@ -404,7 +404,7 @@ export default function ProductsPage() {
     setSuccess('');
 
     try {
-      const response = await fetch(`/api/products?id=${alertConfigProduct.id}`, {
+      const response = await fetchWithAuth(`/api/products?id=${alertConfigProduct.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -440,7 +440,7 @@ export default function ProductsPage() {
     if (!productToDelete) return;
 
     try {
-      const response = await fetch(`/api/products?id=${productToDelete.id}`, {
+      const response = await fetchWithAuth(`/api/products?id=${productToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -471,7 +471,7 @@ export default function ProductsPage() {
 
     try {
       const deletePromises = Array.from(selectedProducts).map(id =>
-        fetch(`/api/products?id=${id}`, { method: 'DELETE' })
+        fetchWithAuth(`/api/products?id=${id}`, { method: 'DELETE' })
       );
 
       await Promise.all(deletePromises);

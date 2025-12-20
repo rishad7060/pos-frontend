@@ -12,6 +12,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Search, Plus, User, Phone, Mail, MapPin, DollarSign, ShoppingBag, Edit2, Trash2, Eye, CreditCard, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, toNumber } from '@/lib/number-utils';
+import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Customer {
   id: number;
@@ -42,20 +45,29 @@ export default function CustomersPage() {
     address: ''
   });
 
+  // Credit Adjustment State
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [creditCustomer, setCreditCustomer] = useState<Customer | null>(null);
+  const [creditForm, setCreditForm] = useState({
+    amount: '',
+    type: 'credit', // 'credit' (reduce debt) or 'debit' (increase debt)
+    description: ''
+  });
+
   useEffect(() => {
     fetchCustomers();
   }, []);
 
   const fetchCustomers = async () => {
     try {
-      const response = await fetch('/api/customers?limit=100');
+      const response = await fetchWithAuth('/api/customers?limit=100');
       const data = await response.json();
 
       // Fetch credit balance for each customer
       const customersWithCredit = await Promise.all(
         data.map(async (customer: Customer) => {
           try {
-            const creditRes = await fetch(`/api/customer-credits?customerId=${customer.id}&limit=1`);
+            const creditRes = await fetchWithAuth(`/api/customer-credits?customerId=${customer.id}&limit=1`);
             const creditData = await creditRes.json();
             const creditBalance = creditData.length > 0 ? creditData[0].balance : 0;
             return { ...customer, creditBalance };
@@ -86,7 +98,7 @@ export default function CustomersPage() {
         ? `/api/customers?id=${editingCustomer.id}`
         : '/api/customers';
 
-      const response = await fetch(url, {
+      const response = await fetchWithAuth(url, {
         method: editingCustomer ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -107,7 +119,7 @@ export default function CustomersPage() {
     if (!confirm('Delete this customer?')) return;
 
     try {
-      const response = await fetch(`/api/customers?id=${id}`, {
+      const response = await fetchWithAuth(`/api/customers?id=${id}`, {
         method: 'DELETE'
       });
 
@@ -134,6 +146,50 @@ export default function CustomersPage() {
   const resetForm = () => {
     setFormData({ name: '', phone: '', email: '', address: '' });
     setEditingCustomer(null);
+  };
+
+  // Credit Adjustment Functions
+  const openCreditDialog = (customer: Customer) => {
+    setCreditCustomer(customer);
+    setCreditForm({
+      amount: '',
+      type: 'credit',
+      description: ''
+    });
+    setCreditDialogOpen(true);
+  };
+
+  const handleCreditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!creditCustomer) return;
+    if (!creditForm.amount || parseFloat(creditForm.amount) <= 0) {
+      toast.error('Please enter a valid positive amount');
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth('/api/customers/credit', {
+        method: 'POST',
+        body: JSON.stringify({
+          customerId: creditCustomer.id,
+          amount: parseFloat(creditForm.amount),
+          type: creditForm.type,
+          description: creditForm.description
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update credit');
+      }
+
+      toast.success('Credit adjusted successfully');
+      setCreditDialogOpen(false);
+      fetchCustomers();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update credit');
+    }
   };
 
   const filteredCustomers = customers.filter(c =>
@@ -233,6 +289,15 @@ export default function CustomersPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => openCreditDialog(customer)}
+                      title="Add Manual Credit/Charge"
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <DollarSign className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => router.push(`/admin/customers/${customer.id}`)}
                       title="View Details"
                     >
@@ -316,7 +381,6 @@ export default function CustomersPage() {
         </Card>
       )}
 
-
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -362,6 +426,76 @@ export default function CustomersPage() {
                 {editingCustomer ? 'Update' : 'Create'}
               </Button>
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Credit Adjustment Dialog */}
+      <Dialog open={creditDialogOpen} onOpenChange={setCreditDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adjust Credit - {creditCustomer?.name}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreditSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Adjustment Type</Label>
+              <Select
+                value={creditForm.type}
+                onValueChange={(val) => setCreditForm({ ...creditForm, type: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="credit">
+                    <div className="flex items-center gap-2 text-green-600">
+                      <DollarSign className="h-4 w-4" />
+                      <span>Add Credit / Payment (Reduce Debt)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="debit">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <CreditCard className="h-4 w-4" />
+                      <span>Add Charge / Debit (Increase Debt)</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={creditForm.amount}
+                onChange={(e) => setCreditForm({ ...creditForm, amount: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description / Notes</Label>
+              <Textarea
+                id="description"
+                placeholder="Reason for adjustment..."
+                value={creditForm.description}
+                onChange={(e) => setCreditForm({ ...creditForm, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1">
+                Confirm Adjustment
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setCreditDialogOpen(false)}>
                 Cancel
               </Button>
             </div>

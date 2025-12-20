@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Trash2, Minus, Plus, ShoppingCart, Percent } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingCart, Percent, Edit2 } from 'lucide-react';
 import type { CartItem, Customer } from '@/types/pos';
 import { formatCurrency } from '@/lib/calculations';
 
@@ -14,6 +14,7 @@ interface CartPanelProps {
     customer: Customer | null;
     onUpdateQuantity: (id: string, quantity: number) => void;
     onRemoveItem: (id: string) => void;
+    onEditItem: (item: CartItem) => void;
     onDiscountChange: (discount: number) => void;
     onCheckout: () => void;
     onClearCart: () => void;
@@ -32,6 +33,7 @@ export function CartPanel({
     customer,
     onUpdateQuantity,
     onRemoveItem,
+    onEditItem,
     onDiscountChange,
     onCheckout,
     onClearCart,
@@ -98,14 +100,25 @@ export function CartPanel({
                                                 {item.netWeightKg.toFixed(3)} kg × LKR {item.pricePerKg}
                                             </p>
                                         </div>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 text-destructive"
-                                            onClick={() => onRemoveItem(item.id)}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
+                                        <div className="flex items-center">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                                onClick={() => onEditItem(item)}
+                                                title="Edit Item"
+                                            >
+                                                <Edit2 className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-destructive"
+                                                onClick={() => onRemoveItem(item.id)}
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     </div>
 
                                     {/* Quantity Controls */}

@@ -554,6 +554,7 @@ export default function POSPage() {
                 cashierId={user?.id || 0}
                 registrySessionId={registrySession.id} // TEAM_003: Link orders to current registry session
                 cashierName={user?.fullName || ''} // TEAM_003: Pass cashier name for receipt
+                initialPermissions={permissions}
                 onOrderComplete={async () => {
                   console.log('🔐 POS order complete - user ID:', user?.id);
                   // Refresh session stats after order completion (non-destructive)

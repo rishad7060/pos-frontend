@@ -78,6 +78,7 @@ interface MultiTabPOSProps {
   onOrderComplete?: () => void;
   registrySessionId?: number; // TEAM_003: Link orders to registry session
   cashierName?: string; // TEAM_003: Cashier name for receipt
+  initialPermissions?: any; // TEAM_003: Permissions passed from parent
 }
 
 // Debug function to check permissions
@@ -113,7 +114,7 @@ const getCategoryColor = (categoryName: string): string => {
   return colors[lowerCategory] || 'bg-slate-500/20 hover:bg-slate-500/30 border-slate-500/40';
 };
 
-export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessionId, cashierName = '' }: MultiTabPOSProps) {
+export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessionId, cashierName = '', initialPermissions }: MultiTabPOSProps) {
   console.log('🔐 MultiTabPOS initialized with cashierId:', cashierId);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -166,6 +167,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
   const [printKey, setPrintKey] = useState(0); // Key to force iframe remount
   const printIframeRef = useRef<HTMLIFrameElement>(null);
   const shouldAutoPrintRef = useRef(false); // Ref to track auto-print state
+  const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
 
   const activeTab = orderTabs.find(tab => tab.id === activeTabId);
 
@@ -217,7 +219,15 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
     fetchProducts();
     fetchCategories();
     fetchPrinterSettings();
-  }, []);
+
+    if (initialPermissions) {
+      console.log('🔐 Using initialPermissions passed from parent:', initialPermissions);
+      setPermissions(initialPermissions);
+      debugPermissions(initialPermissions, 'Initial Prop Permissions');
+    } else {
+      fetchPermissions();
+    }
+  }, [initialPermissions]);
 
   // Save tabs and order number to localStorage whenever they change
   useEffect(() => {
@@ -498,6 +508,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
   };
 
   const openWeightDialog = (product: Product) => {
+    setEditingCartItem(null);
     const remainingStock = getRemainingStock(product.id);
 
     if (remainingStock <= 0.001) {
@@ -514,6 +525,25 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
     setBoxWeightG(0);
     setBoxCount(0);
     setItemDiscount(0);
+    setWeightDialogOpen(true);
+  };
+
+  const handleEditCartItem = (item: CartItem) => {
+    const product = products.find(p => p.id === item.productId);
+    if (!product) {
+      toast.error('Product not found');
+      return;
+    }
+
+    setEditingCartItem(item);
+    setSelectedProduct(product);
+    setItemWeightKg(item.itemWeightKg);
+    setItemWeightG(item.itemWeightG);
+    setBoxWeightKg(item.boxWeightKg);
+    setBoxWeightG(item.boxWeightG);
+    setBoxCount(item.boxCount);
+    setPricePerKg(item.pricePerKg);
+    setItemDiscount(item.itemDiscountPercent);
     setWeightDialogOpen(true);
   };
 
@@ -599,7 +629,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
     }
 
     const newItem: CartItem = {
-      id: Date.now().toString(),
+      id: editingCartItem ? editingCartItem.id : Date.now().toString(),
       productId: selectedProduct.id,
       itemName: selectedProduct.name,
       quantityType: 'kg',
@@ -614,10 +644,16 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
       ...calculated,
     };
 
-    updateActiveTabCart([...activeTab.cart, newItem]);
+    if (editingCartItem) {
+      updateActiveTabCart(activeTab.cart.map(item => item.id === editingCartItem.id ? newItem : item));
+      toast.success(`${selectedProduct.name} updated`);
+    } else {
+      updateActiveTabCart([...activeTab.cart, newItem]);
+      toast.success(`${selectedProduct.name} added to cart`);
+    }
     setWeightDialogOpen(false);
+    setEditingCartItem(null);
     setError('');
-    toast.success(`${selectedProduct.name} added to cart`);
   };
 
   const addUnitBasedProduct = (product: Product) => {
@@ -630,7 +666,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
       return;
     }
 
-    const existingItem = activeTab.cart.find(item => item.productId === product.id && item.quantityType === 'kg');
+    const existingItem = activeTab.cart.find(item => item.productId === product.id && item.quantityType === 'unit');
 
     if (existingItem) {
       const newQuantity = existingItem.itemWeightKg + 1;
@@ -651,7 +687,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         id: Date.now().toString(),
         productId: product.id,
         itemName: product.name,
-        quantityType: 'kg',
+        quantityType: 'unit',
         itemWeightKg: 1,
         itemWeightG: 0,
         boxWeightKg: 0,
@@ -1090,7 +1126,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
 
                 <div className="flex items-center justify-between pt-2 border-t border-dashed border-border/60">
                   <div className="flex items-center gap-3">
-                    {isUnitBased ? (
+                    {item.quantityType === 'unit' || isUnitBased ? (
                       <div className="flex items-center bg-muted/40 rounded-lg border h-8 shadow-sm">
                         <button
                           className="px-2.5 h-full hover:bg-background hover:text-destructive transition-all disabled:opacity-30 rounded-l-lg hover:shadow-sm"
@@ -1132,14 +1168,26 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
                     )}
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFromCart(item.id)}
-                    className="h-8 w-8 p-0 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditCartItem(item)}
+                      className="h-8 w-8 p-0 text-muted-foreground/60 hover:text-primary hover:bg-primary/10 rounded-full transition-colors"
+                      title="Edit Item"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFromCart(item.id)}
+                      className="h-8 w-8 p-0 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-full transition-colors"
+                      title="Remove Item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
 
                 {!hasStock && product && (
@@ -1174,7 +1222,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
           </div>
           <div className="text-xs text-right space-y-0.5 flex-shrink-0 sm:min-w-[100px]">
             <p className="text-muted-foreground">Count: <span className="font-bold text-foreground">{activeTab?.cart.length || 0}</span></p>
-            <p className="text-muted-foreground">Total Kg: <span className="font-bold text-foreground">{activeTab?.cart.reduce((acc, item) => acc + item.netWeightKg, 0).toFixed(3) || '0.000'}</span></p>
+            <p className="text-muted-foreground">Total Wt/Qty: <span className="font-bold text-foreground">{activeTab?.cart.reduce((acc, item) => acc + item.netWeightKg, 0).toFixed(3) || '0.000'}</span></p>
           </div>
         </div>
 
@@ -1490,7 +1538,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
             <DialogTitle className="flex items-center justify-between pr-8 text-xl">
               <div className="flex items-center gap-2">
                 <Scale className="h-5 w-5 text-primary" />
-                <span>Weight Entry</span>
+                <span>{editingCartItem ? 'Edit' : 'Add'} Item {selectedProduct?.unitType === 'unit' ? '(Qty)' : '(Weight)'}</span>
               </div>
             </DialogTitle>
             <DialogDescription>
@@ -1516,7 +1564,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
               <TabsContent value="simple" className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="itemWeightKg" className="text-xs uppercase text-muted-foreground font-bold">Weight (KG) *</Label>
+                    <Label htmlFor="itemWeightKg" className="text-xs uppercase text-muted-foreground font-bold">{selectedProduct?.unitType === 'unit' ? 'Quantity' : 'Weight (KG)'} *</Label>
                     <div className="relative">
                       <Input
                         id="itemWeightKg"
@@ -1529,7 +1577,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
                         placeholder="0.000"
                         autoFocus
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">KG</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{selectedProduct?.unitType === 'unit' ? 'Qty' : 'KG'}</span>
                     </div>
                   </div>
 
@@ -1545,6 +1593,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
                         onChange={(e) => setItemWeightG(parseFloat(e.target.value) || 0)}
                         className="h-12 text-lg"
                         placeholder="0"
+                        disabled={selectedProduct?.unitType === 'unit'}
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">G</span>
                     </div>
@@ -1554,7 +1603,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="pricePerKg" className="text-xs uppercase text-muted-foreground font-bold">
-                      Price per KG {!permissions?.canEditPrices && <span className="text-orange-600">(Read-only)</span>}
+                      Price {selectedProduct?.unitType !== 'unit' && 'per KG'} {!permissions?.canEditPrices && <span className="text-orange-600">(Read-only)</span>}
                     </Label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">LKR</span>
@@ -1600,7 +1649,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
               <TabsContent value="advanced" className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="itemWeightKg2">Item Weight (KG) *</Label>
+                    <Label htmlFor="itemWeightKg2">{selectedProduct?.unitType === 'unit' ? 'Quantity' : 'Item Weight (KG)'} *</Label>
                     <Input
                       id="itemWeightKg2"
                       type="number"
@@ -1801,7 +1850,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add to Order
+                    {editingCartItem ? 'Update Order' : 'Add to Order'}
                   </>
                 )}
               </Button>
@@ -1855,20 +1904,22 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Payment Dialog */}
-      {activeTab && (
-        <PaymentDialog
-          open={paymentDialogOpen}
-          onOpenChange={setPaymentDialogOpen}
-          orderTotal={orderTotal}
-          orderSubtotal={orderSubtotal}
-          orderDiscount={orderDiscountAmount}
-          customer={activeTab.customer}
-          onPaymentComplete={submitOrder}
-        />
-      )}
+      {
+        activeTab && (
+          <PaymentDialog
+            open={paymentDialogOpen}
+            onOpenChange={setPaymentDialogOpen}
+            orderTotal={orderTotal}
+            orderSubtotal={orderSubtotal}
+            orderDiscount={orderDiscountAmount}
+            customer={activeTab.customer}
+            onPaymentComplete={submitOrder}
+          />
+        )
+      }
 
       {/* Print Receipt Dialog */}
       <Dialog open={printDialogOpen} onOpenChange={(open) => {
@@ -1909,6 +1960,6 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }

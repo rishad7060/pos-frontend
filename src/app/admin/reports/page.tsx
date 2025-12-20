@@ -110,7 +110,8 @@ interface PriceChangeRecord {
   id: number;
   productId: number;
   userId: number;
-  changeType: 'cost_price' | 'selling_price';
+  changeType: 'cost_price' | 'selling_price' | 'pos_override';
+  orderNumber?: string | null;
   oldPrice: number;
   newPrice: number;
   notes: string | null;
@@ -142,7 +143,7 @@ export default function ReportsPage() {
 
   // New state for price change history
   const [priceChangeHistory, setPriceChangeHistory] = useState<PriceChangeRecord[]>([]);
-  const [priceChangeTypeFilter, setPriceChangeTypeFilter] = useState<'all' | 'cost_price' | 'selling_price'>('all');
+  const [priceChangeTypeFilter, setPriceChangeTypeFilter] = useState<'all' | 'cost_price' | 'selling_price' | 'pos_override'>('all');
   const [loadingPriceHistory, setLoadingPriceHistory] = useState(false);
 
   useEffect(() => {
@@ -907,7 +908,7 @@ export default function ReportsPage() {
                         <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                         <Select
                           value={priceChangeTypeFilter}
-                          onValueChange={(value: 'all' | 'cost_price' | 'selling_price') => setPriceChangeTypeFilter(value)}
+                          onValueChange={(value: 'all' | 'cost_price' | 'selling_price' | 'pos_override') => setPriceChangeTypeFilter(value)}
                         >
                           <SelectTrigger className="w-full sm:w-[200px] h-9 sm:h-10 text-xs sm:text-sm">
                             <SelectValue placeholder="Filter by type" />
@@ -916,6 +917,7 @@ export default function ReportsPage() {
                             <SelectItem value="all">All Changes</SelectItem>
                             <SelectItem value="cost_price">Cost Price Only</SelectItem>
                             <SelectItem value="selling_price">Selling Price Only</SelectItem>
+                            <SelectItem value="pos_override">POS Overrides</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -946,9 +948,11 @@ export default function ReportsPage() {
                                 <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
                                   <div className={`px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold flex-shrink-0 ${change.changeType === 'cost_price'
                                     ? 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300'
-                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+                                    : change.changeType === 'pos_override'
+                                      ? 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                                      : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
                                     }`}>
-                                    {change.changeType === 'cost_price' ? 'Cost Price' : 'Selling Price'}
+                                    {change.changeType === 'cost_price' ? 'Cost Price' : change.changeType === 'pos_override' ? 'POS Override' : 'Selling Price'}
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="font-bold text-sm sm:text-lg truncate">{change.productName}</p>
@@ -978,6 +982,13 @@ export default function ReportsPage() {
                                     <div className="bg-muted/50 p-2 sm:p-3 rounded-lg">
                                       <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Note:</p>
                                       <p className="text-xs sm:text-sm italic">{change.notes}</p>
+                                    </div>
+                                  )}
+
+                                  {change.orderNumber && (
+                                    <div className="bg-purple-50 dark:bg-purple-950/20 p-2 sm:p-3 rounded-lg mt-2">
+                                      <p className="text-[10px] sm:text-xs text-muted-foreground mb-1">Related Order:</p>
+                                      <p className="text-xs sm:text-sm font-mono font-medium">{change.orderNumber}</p>
                                     </div>
                                   )}
                                 </div>
