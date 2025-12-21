@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,12 +10,12 @@ import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
-import { 
-  Banknote, 
-  CreditCard, 
-  Wallet, 
-  Plus, 
-  Trash2, 
+import {
+  Banknote,
+  CreditCard,
+  Wallet,
+  Plus,
+  Trash2,
   CheckCircle,
   Calculator,
   AlertCircle,
@@ -65,26 +65,45 @@ export default function PaymentDialog({
   const [splitPayments, setSplitPayments] = useState<PaymentMethod[]>([]);
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [showSplitCreditWarning, setShowSplitCreditWarning] = useState(false);
 
-  // Reset state when dialog opens
+  // Reset all state when dialog opens/closes
+  const resetState = useCallback(() => {
+    setCashReceived(0);
+    setCardType('visa');
+    setCardReference('');
+    setMobileReference('');
+    setSplitPayments([]);
+    setError('');
+    setProcessing(false);
+    setPaymentType('cash');
+    setShowSplitCreditWarning(false);
+  }, []);
+
   useEffect(() => {
     if (open) {
-      setCashReceived(0);
-      setCardType('visa');
-      setCardReference('');
-      setMobileReference('');
-      setSplitPayments([]);
-      setError('');
-      setProcessing(false);
-      setPaymentType('cash');
+      resetState();
     }
-  }, [open]);
+  }, [open, resetState]);
+
+  // Reset credit warning when customer is selected
+  useEffect(() => {
+    if (customer) {
+      setShowSplitCreditWarning(false);
+    }
+  }, [customer]);
+
+  // Reset credit warning when switching away from split tab
+  const handlePaymentTypeChange = (value: string) => {
+    setPaymentType(value as typeof paymentType);
+    setShowSplitCreditWarning(false);
+    setError('');
+  };
 
   const changeAmount = cashReceived - orderTotal;
   const splitTotalPaid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
   const splitRemaining = orderTotal - splitTotalPaid;
 
-  // Quick cash amount buttons
   const quickAmounts = [
     { label: '100', value: 100 },
     { label: '500', value: 500 },
@@ -94,10 +113,14 @@ export default function PaymentDialog({
   ];
 
   const addSplitPayment = (type: 'cash' | 'card' | 'mobile' | 'credit') => {
+    // Show warning only for credit without customer
     if (type === 'credit' && !customer) {
-      setError('Customer is required for credit payments');
+      setShowSplitCreditWarning(true);
       return;
     }
+
+    // Hide warning when adding any valid payment method
+    setShowSplitCreditWarning(false);
 
     const newPayment: PaymentMethod = {
       id: Date.now().toString(),
@@ -114,7 +137,7 @@ export default function PaymentDialog({
   };
 
   const updateSplitPayment = (id: string, updates: Partial<PaymentMethod>) => {
-    setSplitPayments(splitPayments.map(p => 
+    setSplitPayments(splitPayments.map(p =>
       p.id === id ? { ...p, ...updates } : p
     ));
   };
@@ -202,7 +225,6 @@ export default function PaymentDialog({
         return;
       }
 
-      // Validate references for card/mobile payments
       for (const payment of splitPayments) {
         if ((payment.type === 'card' || payment.type === 'mobile') && !payment.reference?.trim()) {
           setError(`Please enter reference for ${payment.type} payment`);
@@ -222,6 +244,9 @@ export default function PaymentDialog({
     }
   };
 
+  // Determine if we should show the credit warning in split mode
+  const shouldShowCreditWarning = paymentType === 'split' && showSplitCreditWarning && !customer;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -230,9 +255,9 @@ export default function PaymentDialog({
             <Wallet className="h-6 w-6" />
             Payment
             {customer && (
-               <Badge variant="secondary" className="ml-auto text-sm font-normal">
-                 Customer: <span className="font-bold ml-1">{customer.name}</span>
-               </Badge>
+              <Badge variant="secondary" className="ml-auto text-sm font-normal">
+                Customer: <span className="font-bold ml-1">{customer.name}</span>
+              </Badge>
             )}
           </DialogTitle>
         </DialogHeader>
@@ -258,7 +283,7 @@ export default function PaymentDialog({
           </div>
 
           {/* Payment Method Tabs */}
-          <Tabs value={paymentType} onValueChange={(v) => setPaymentType(v as any)}>
+          <Tabs value={paymentType} onValueChange={handlePaymentTypeChange}>
             <TabsList className="grid grid-cols-5 w-full">
               <TabsTrigger value="cash" className="flex items-center gap-2">
                 <Banknote className="h-4 w-4" />
@@ -299,7 +324,6 @@ export default function PaymentDialog({
                 />
               </div>
 
-              {/* Quick Amount Buttons */}
               <div className="grid grid-cols-5 gap-2">
                 {quickAmounts.map((qa) => (
                   <Button
@@ -313,7 +337,6 @@ export default function PaymentDialog({
                 ))}
               </div>
 
-              {/* Change Calculation */}
               {cashReceived > 0 && (
                 <Card className={changeAmount >= 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}>
                   <CardContent className="p-4">
@@ -409,26 +432,26 @@ export default function PaymentDialog({
             <TabsContent value="credit" className="space-y-4 mt-4">
               {!customer ? (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-destructive/50 rounded-lg bg-destructive/5">
-                   <User className="h-12 w-12 text-destructive mb-3" />
-                   <h3 className="text-lg font-bold text-destructive mb-1">Customer Required</h3>
-                   <p className="text-muted-foreground text-center max-w-md">
-                     You must associate a customer with this order to process a credit purchase. 
-                     Please close this dialog and select a customer first.
-                   </p>
-                   <Button 
-                     variant="outline" 
-                     className="mt-4" 
-                     onClick={() => onOpenChange(false)}
-                   >
-                     Go back to select customer
-                   </Button>
+                  <User className="h-12 w-12 text-destructive mb-3" />
+                  <h3 className="text-lg font-bold text-destructive mb-1">Customer Required</h3>
+                  <p className="text-muted-foreground text-center max-w-md">
+                    You must associate a customer with this order to process a credit purchase.
+                    Please close this dialog and select a customer first.
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Go back to select customer
+                  </Button>
                 </div>
               ) : (
                 <>
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>
-                      This amount will be added to <span className="font-bold">{customer.name}'s</span> outstanding balance.
+                      This amount will be added to <span className="font-bold">{customer.name}&apos;s</span> outstanding balance.
                     </AlertDescription>
                   </Alert>
 
@@ -448,6 +471,29 @@ export default function PaymentDialog({
 
             {/* Split Payment */}
             <TabsContent value="split" className="space-y-4 mt-4">
+              {/* Credit Warning - Only show when triggered and no customer */}
+              {shouldShowCreditWarning && (
+                <Alert variant="destructive" className="mb-4">
+                  <User className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>
+                      Customer required for credit payment. Please select a customer first.
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="ml-4 shrink-0"
+                      onClick={() => {
+                        setShowSplitCreditWarning(false);
+                        onOpenChange(false);
+                      }}
+                    >
+                      Select Customer
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex items-center justify-between">
                 <Label className="text-base">Payment Methods</Label>
                 <div className="flex gap-2">
@@ -479,11 +525,12 @@ export default function PaymentDialog({
                     Mobile
                   </Button>
                   <Button
-                    variant="outline"
+                    variant={!customer ? 'outline' : 'outline'}
                     size="sm"
                     onClick={() => addSplitPayment('credit')}
-                    disabled={splitRemaining <= 0 || !customer}
-                    title={!customer ? 'Customer required' : ''}
+                    disabled={splitRemaining <= 0}
+                    // className={!customer ? 'opacity-70' : ''}
+                    title={!customer ? 'Customer required for credit' : 'Add credit payment'}
                   >
                     <Receipt className="h-4 w-4 mr-1" />
                     Credit
@@ -569,11 +616,11 @@ export default function PaymentDialog({
                             />
                           </div>
                         )}
-                        
+
                         {payment.type === 'credit' && (
                           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
-                             <User className="h-3 w-3" />
-                             <span>Linked to: <span className="font-semibold">{customer?.name}</span></span>
+                            <User className="h-3 w-3" />
+                            <span>Linked to: <span className="font-semibold">{customer?.name}</span></span>
                           </div>
                         )}
                       </CardContent>
