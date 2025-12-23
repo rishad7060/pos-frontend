@@ -21,16 +21,27 @@ import {
   AlertCircle,
   Printer,
   Receipt,
-  User
+  User,
+  FileText
 } from 'lucide-react';
 import { Customer } from './CustomerSelection';
 
 interface PaymentMethod {
   id: string;
-  type: 'cash' | 'card' | 'mobile' | 'credit';
+  type: 'cash' | 'card' | 'mobile' | 'credit' | 'cheque';
   amount: number;
   cardType?: string;
   reference?: string;
+  chequeDetails?: {
+    chequeNumber: string;
+    chequeDate: string;
+    depositReminderDate?: string;
+    payerName: string;
+    payeeName?: string;
+    bankName: string;
+    branchName?: string;
+    notes?: string;
+  };
 }
 
 interface PaymentDialogProps {
@@ -57,11 +68,19 @@ export default function PaymentDialog({
   customer,
   onPaymentComplete,
 }: PaymentDialogProps) {
-  const [paymentType, setPaymentType] = useState<'cash' | 'card' | 'mobile' | 'split' | 'credit'>('cash');
+  const [paymentType, setPaymentType] = useState<'cash' | 'card' | 'mobile' | 'split' | 'credit' | 'cheque'>('cash');
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [cardType, setCardType] = useState<string>('visa');
   const [cardReference, setCardReference] = useState<string>('');
   const [mobileReference, setMobileReference] = useState<string>('');
+  const [chequeNumber, setChequeNumber] = useState<string>('');
+  const [chequeDate, setChequeDate] = useState<string>('');
+  const [depositReminderDate, setDepositReminderDate] = useState<string>('');
+  const [payerName, setPayerName] = useState<string>('');
+  const [payeeName, setPayeeName] = useState<string>('');
+  const [bankName, setBankName] = useState<string>('');
+  const [branchName, setBranchName] = useState<string>('');
+  const [chequeNotes, setChequeNotes] = useState<string>('');
   const [splitPayments, setSplitPayments] = useState<PaymentMethod[]>([]);
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -73,12 +92,20 @@ export default function PaymentDialog({
     setCardType('visa');
     setCardReference('');
     setMobileReference('');
+    setChequeNumber('');
+    setChequeDate('');
+    setDepositReminderDate('');
+    setPayerName(customer?.name || '');
+    setPayeeName('');
+    setBankName('');
+    setBranchName('');
+    setChequeNotes('');
     setSplitPayments([]);
     setError('');
     setProcessing(false);
     setPaymentType('cash');
     setShowSplitCreditWarning(false);
-  }, []);
+  }, [customer]);
 
   useEffect(() => {
     if (open) {
@@ -112,7 +139,7 @@ export default function PaymentDialog({
     { label: 'Exact', value: orderTotal },
   ];
 
-  const addSplitPayment = (type: 'cash' | 'card' | 'mobile' | 'credit') => {
+  const addSplitPayment = (type: 'cash' | 'card' | 'mobile' | 'credit' | 'cheque') => {
     // Show warning only for credit without customer
     if (type === 'credit' && !customer) {
       setShowSplitCreditWarning(true);
@@ -131,6 +158,18 @@ export default function PaymentDialog({
     if (type === 'card') {
       newPayment.cardType = 'visa';
       newPayment.reference = '';
+    }
+
+    if (type === 'cheque') {
+      newPayment.chequeDetails = {
+        chequeNumber: '',
+        chequeDate: new Date().toISOString().split('T')[0],
+        payerName: customer?.name || '',
+        payeeName: '',
+        bankName: '',
+        branchName: '',
+        notes: '',
+      };
     }
 
     setSplitPayments([...splitPayments, newPayment]);
@@ -209,6 +248,43 @@ export default function PaymentDialog({
           amount: orderTotal,
         }],
       });
+    } else if (paymentType === 'cheque') {
+      if (!chequeNumber.trim()) {
+        setError('Please enter cheque number');
+        return;
+      }
+      if (!chequeDate) {
+        setError('Please select cheque date');
+        return;
+      }
+      if (!payerName.trim()) {
+        setError('Please enter payer name');
+        return;
+      }
+      if (!bankName.trim()) {
+        setError('Please enter bank name');
+        return;
+      }
+
+      setProcessing(true);
+      onPaymentComplete({
+        paymentMethod: 'cheque',
+        payments: [{
+          id: '1',
+          type: 'cheque',
+          amount: orderTotal,
+          chequeDetails: {
+            chequeNumber,
+            chequeDate,
+            depositReminderDate: depositReminderDate || undefined,
+            payerName,
+            payeeName: payeeName || undefined,
+            bankName,
+            branchName: branchName || undefined,
+            notes: chequeNotes || undefined,
+          },
+        }],
+      });
     } else if (paymentType === 'split') {
       if (splitPayments.length === 0) {
         setError('Please add at least one payment method');
@@ -233,6 +309,24 @@ export default function PaymentDialog({
         if (payment.type === 'credit' && !customer) {
           setError('Customer required for credit payment');
           return;
+        }
+        if (payment.type === 'cheque') {
+          if (!payment.chequeDetails?.chequeNumber?.trim()) {
+            setError('Please enter cheque number');
+            return;
+          }
+          if (!payment.chequeDetails?.chequeDate) {
+            setError('Please enter cheque date');
+            return;
+          }
+          if (!payment.chequeDetails?.payerName?.trim()) {
+            setError('Please enter payer name for cheque');
+            return;
+          }
+          if (!payment.chequeDetails?.bankName?.trim()) {
+            setError('Please enter bank name for cheque');
+            return;
+          }
         }
       }
 
@@ -284,7 +378,7 @@ export default function PaymentDialog({
 
           {/* Payment Method Tabs */}
           <Tabs value={paymentType} onValueChange={handlePaymentTypeChange}>
-            <TabsList className="grid grid-cols-5 w-full">
+            <TabsList className="grid grid-cols-6 w-full">
               <TabsTrigger value="cash" className="flex items-center gap-2">
                 <Banknote className="h-4 w-4" />
                 Cash
@@ -296,6 +390,10 @@ export default function PaymentDialog({
               <TabsTrigger value="mobile" className="flex items-center gap-2">
                 <Wallet className="h-4 w-4" />
                 Mobile
+              </TabsTrigger>
+              <TabsTrigger value="cheque" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Cheque
               </TabsTrigger>
               <TabsTrigger value="credit" className="flex items-center gap-2">
                 <Receipt className="h-4 w-4" />
@@ -428,6 +526,127 @@ export default function PaymentDialog({
               </Card>
             </TabsContent>
 
+            {/* Cheque Payment */}
+            <TabsContent value="cheque" className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="chequeNumber">Cheque Number *</Label>
+                  <Input
+                    id="chequeNumber"
+                    type="text"
+                    value={chequeNumber}
+                    onChange={(e) => setChequeNumber(e.target.value)}
+                    placeholder="Enter cheque number"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="chequeDate">Cheque Date *</Label>
+                  <Input
+                    id="chequeDate"
+                    type="date"
+                    value={chequeDate}
+                    onChange={(e) => setChequeDate(e.target.value)}
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="depositReminderDate">Deposit Reminder (Optional)</Label>
+                  <Input
+                    id="depositReminderDate"
+                    type="date"
+                    value={depositReminderDate}
+                    onChange={(e) => setDepositReminderDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="h-12"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Set a date to remind depositing this cheque at bank
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="payerName">Payer Name *</Label>
+                  <Input
+                    id="payerName"
+                    type="text"
+                    value={payerName}
+                    onChange={(e) => setPayerName(e.target.value)}
+                    placeholder="Name on cheque"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="payeeName">Payee Name (Optional)</Label>
+                  <Input
+                    id="payeeName"
+                    type="text"
+                    value={payeeName}
+                    onChange={(e) => setPayeeName(e.target.value)}
+                    placeholder="Pay to the order of"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="bankName">Bank Name *</Label>
+                  <Input
+                    id="bankName"
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="Bank name"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="branchName">Branch Name (Optional)</Label>
+                  <Input
+                    id="branchName"
+                    type="text"
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
+                    placeholder="Branch name"
+                    className="h-12"
+                  />
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="chequeNotes">Notes (Optional)</Label>
+                  <Input
+                    id="chequeNotes"
+                    type="text"
+                    value={chequeNotes}
+                    onChange={(e) => setChequeNotes(e.target.value)}
+                    placeholder="Additional notes"
+                    className="h-12"
+                  />
+                </div>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Cheque will be marked as pending. You can track and update its status in Finance &gt; Cheques.
+                </AlertDescription>
+              </Alert>
+
+              <Card className="bg-blue-50 dark:bg-blue-900/20">
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-semibold">Cheque Amount:</span>
+                    <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      LKR {orderTotal.toFixed(2)}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* Credit Payment */}
             <TabsContent value="credit" className="space-y-4 mt-4">
               {!customer ? (
@@ -523,6 +742,15 @@ export default function PaymentDialog({
                   >
                     <Wallet className="h-4 w-4 mr-1" />
                     Mobile
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addSplitPayment('cheque')}
+                    disabled={splitRemaining <= 0}
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Cheque
                   </Button>
                   <Button
                     variant={!customer ? 'outline' : 'outline'}
@@ -621,6 +849,92 @@ export default function PaymentDialog({
                           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted p-2 rounded">
                             <User className="h-3 w-3" />
                             <span>Linked to: <span className="font-semibold">{customer?.name}</span></span>
+                          </div>
+                        )}
+
+                        {payment.type === 'cheque' && (
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label htmlFor={`chequeNo-${payment.id}`} className="text-xs">Cheque No.*</Label>
+                                <Input
+                                  id={`chequeNo-${payment.id}`}
+                                  type="text"
+                                  value={payment.chequeDetails?.chequeNumber || ''}
+                                  onChange={(e) => updateSplitPayment(payment.id, {
+                                    chequeDetails: {
+                                      ...payment.chequeDetails!,
+                                      chequeNumber: e.target.value
+                                    }
+                                  })}
+                                  placeholder="Cheque number"
+                                  className="h-9"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor={`chequeDate-${payment.id}`} className="text-xs">Date*</Label>
+                                <Input
+                                  id={`chequeDate-${payment.id}`}
+                                  type="date"
+                                  value={payment.chequeDetails?.chequeDate || ''}
+                                  onChange={(e) => updateSplitPayment(payment.id, {
+                                    chequeDetails: {
+                                      ...payment.chequeDetails!,
+                                      chequeDate: e.target.value
+                                    }
+                                  })}
+                                  className="h-9"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label htmlFor={`depositReminder-${payment.id}`} className="text-xs">Deposit Reminder</Label>
+                                <Input
+                                  id={`depositReminder-${payment.id}`}
+                                  type="date"
+                                  value={payment.chequeDetails?.depositReminderDate || ''}
+                                  onChange={(e) => updateSplitPayment(payment.id, {
+                                    chequeDetails: {
+                                      ...payment.chequeDetails!,
+                                      depositReminderDate: e.target.value
+                                    }
+                                  })}
+                                  min={new Date().toISOString().split('T')[0]}
+                                  className="h-9"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor={`payerName-${payment.id}`} className="text-xs">Payer Name*</Label>
+                              <Input
+                                id={`payerName-${payment.id}`}
+                                type="text"
+                                value={payment.chequeDetails?.payerName || ''}
+                                onChange={(e) => updateSplitPayment(payment.id, {
+                                  chequeDetails: {
+                                    ...payment.chequeDetails!,
+                                    payerName: e.target.value
+                                  }
+                                })}
+                                placeholder="Name on cheque"
+                                className="h-9"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor={`bankName-${payment.id}`} className="text-xs">Bank Name*</Label>
+                              <Input
+                                id={`bankName-${payment.id}`}
+                                type="text"
+                                value={payment.chequeDetails?.bankName || ''}
+                                onChange={(e) => updateSplitPayment(payment.id, {
+                                  chequeDetails: {
+                                    ...payment.chequeDetails!,
+                                    bankName: e.target.value
+                                  }
+                                })}
+                                placeholder="Bank name"
+                                className="h-9"
+                              />
+                            </div>
                           </div>
                         )}
                       </CardContent>

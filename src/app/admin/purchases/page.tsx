@@ -114,8 +114,26 @@ export default function PurchasesPage() {
     paymentMethod: 'cash',
     paymentDate: new Date().toISOString().split('T')[0],
     reference: '',
-    notes: ''
+    notes: '',
+    existingChequeId: null as number | null,
+    useExistingCheque: false,
+    chequeDetails: {
+      chequeNumber: '',
+      chequeDate: new Date().toISOString().split('T')[0],
+      depositReminderDate: '',
+      payerName: '',
+      payeeName: '',
+      bankName: '',
+      branchName: '',
+      notes: ''
+    }
   });
+
+  const [availableCheques, setAvailableCheques] = useState<any[]>([]);
+
+  // Search state for dropdowns
+  const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
+  const [productSearchTerms, setProductSearchTerms] = useState<{ [key: number]: string }>({});
 
   const [formData, setFormData] = useState({
     supplierId: '',
@@ -218,6 +236,62 @@ export default function PurchasesPage() {
       toast.error('Failed to fetch receiving history');
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const fetchAvailableCheques = async () => {
+    try {
+      // Fetch received, pending cheques that are not endorsed
+      const response = await fetch('/api/cheques?status=pending&transactionType=received&limit=100');
+      const data = await response.json();
+      // Filter out endorsed cheques
+      const availableForEndorsement = Array.isArray(data)
+        ? data.filter((cheque: any) => !cheque.isEndorsed)
+        : [];
+      setAvailableCheques(availableForEndorsement);
+    } catch (error) {
+      console.error('Failed to fetch available cheques:', error);
+      setAvailableCheques([]);
+    }
+  };
+
+  const handleExistingChequeSelect = (chequeId: string) => {
+    if (!chequeId) {
+      setPaymentFormData({
+        ...paymentFormData,
+        existingChequeId: null,
+        amount: '',
+        chequeDetails: {
+          chequeNumber: '',
+          chequeDate: new Date().toISOString().split('T')[0],
+          depositReminderDate: '',
+          payerName: '',
+          payeeName: '',
+          bankName: '',
+          branchName: '',
+          notes: ''
+        }
+      });
+      return;
+    }
+
+    const selectedCheque = availableCheques.find(c => c.id === parseInt(chequeId));
+    if (selectedCheque) {
+      setPaymentFormData({
+        ...paymentFormData,
+        existingChequeId: selectedCheque.id,
+        amount: selectedCheque.amount.toString(),
+        chequeDetails: {
+          chequeNumber: selectedCheque.chequeNumber,
+          chequeDate: selectedCheque.chequeDate.split('T')[0],
+          depositReminderDate: selectedCheque.depositReminderDate ? selectedCheque.depositReminderDate.split('T')[0] : '',
+          payerName: selectedCheque.payerName,
+          payeeName: selectedCheque.payeeName || '',
+          bankName: selectedCheque.bankName,
+          branchName: selectedCheque.branchName || '',
+          notes: selectedCheque.notes || ''
+        }
+      });
     }
   };
 
@@ -441,19 +515,67 @@ export default function PurchasesPage() {
       return;
     }
 
+    // Validate cheque details if payment method is cheque and not using existing cheque
+    if (paymentFormData.paymentMethod === 'cheque' && !paymentFormData.useExistingCheque) {
+      if (!paymentFormData.chequeDetails.chequeNumber.trim()) {
+        toast.error('Please enter cheque number');
+        return;
+      }
+      if (!paymentFormData.chequeDetails.chequeDate) {
+        toast.error('Please select cheque date');
+        return;
+      }
+      if (!paymentFormData.chequeDetails.payerName.trim()) {
+        toast.error('Please enter payer name');
+        return;
+      }
+      if (!paymentFormData.chequeDetails.bankName.trim()) {
+        toast.error('Please enter bank name');
+        return;
+      }
+    }
+
+    // Validate existing cheque selection
+    if (paymentFormData.paymentMethod === 'cheque' && paymentFormData.useExistingCheque && !paymentFormData.existingChequeId) {
+      toast.error('Please select an existing cheque');
+      return;
+    }
+
     try {
+      const requestBody: any = {
+        purchaseId: selectedPurchase.id,
+        amount,
+        paymentMethod: paymentFormData.paymentMethod,
+        paymentDate: paymentFormData.paymentDate,
+        reference: paymentFormData.reference || null,
+        notes: paymentFormData.notes || null,
+        userId: 1 // TODO: Get from session
+      };
+
+      // Add cheque details if payment method is cheque
+      if (paymentFormData.paymentMethod === 'cheque') {
+        if (paymentFormData.useExistingCheque && paymentFormData.existingChequeId) {
+          // Link to existing cheque
+          requestBody.existingChequeId = paymentFormData.existingChequeId;
+        } else {
+          // Create new cheque
+          requestBody.chequeDetails = {
+            chequeNumber: paymentFormData.chequeDetails.chequeNumber,
+            chequeDate: paymentFormData.chequeDetails.chequeDate,
+            depositReminderDate: paymentFormData.chequeDetails.depositReminderDate || undefined,
+            payerName: paymentFormData.chequeDetails.payerName,
+            payeeName: paymentFormData.chequeDetails.payeeName || undefined,
+            bankName: paymentFormData.chequeDetails.bankName,
+            branchName: paymentFormData.chequeDetails.branchName || undefined,
+            notes: paymentFormData.chequeDetails.notes || undefined,
+          };
+        }
+      }
+
       const response = await fetch('/api/purchase-payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          purchaseId: selectedPurchase.id,
-          amount,
-          paymentMethod: paymentFormData.paymentMethod,
-          paymentDate: paymentFormData.paymentDate,
-          reference: paymentFormData.reference || null,
-          notes: paymentFormData.notes || null,
-          userId: 1 // TODO: Get from session
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) throw new Error();
@@ -465,7 +587,19 @@ export default function PurchasesPage() {
         paymentMethod: 'cash',
         paymentDate: new Date().toISOString().split('T')[0],
         reference: '',
-        notes: ''
+        notes: '',
+        existingChequeId: null,
+        useExistingCheque: false,
+        chequeDetails: {
+          chequeNumber: '',
+          chequeDate: new Date().toISOString().split('T')[0],
+          depositReminderDate: '',
+          payerName: '',
+          payeeName: '',
+          bankName: '',
+          branchName: '',
+          notes: ''
+        }
       });
 
       // Refresh data and close dialog
@@ -898,32 +1032,70 @@ export default function PurchasesPage() {
 
       {/* Create Purchase Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-2xl">Create New Purchase Order</DialogTitle>
             <DialogDescription>
               Add items, specify quantities and prices for your purchase order
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto max-h-[calc(90vh-140px)] pr-2">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Supplier *</Label>
-                <Select value={formData.supplierId} onValueChange={(value) => setFormData({ ...formData, supplierId: value })}>
+                <Select
+                  value={formData.supplierId}
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, supplierId: value });
+                    setSupplierSearchTerm('');
+                  }}
+                  onOpenChange={(open) => {
+                    if (!open) setSupplierSearchTerm('');
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map(supplier => (
-                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{supplier.name}</span>
-                          {supplier.phone && (
-                            <span className="text-xs text-muted-foreground">{supplier.phone}</span>
-                          )}
+                  <SelectContent position="popper" className="max-h-[300px]" sideOffset={5}>
+                    <div className="sticky top-0 z-10 bg-popover p-2 border-b">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search suppliers..."
+                          value={supplierSearchTerm}
+                          onChange={(e) => setSupplierSearchTerm(e.target.value)}
+                          className="pl-8 h-8"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-[240px] overflow-y-auto">
+                      {suppliers
+                        .filter(supplier =>
+                          supplier.name.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
+                          supplier.phone?.toLowerCase().includes(supplierSearchTerm.toLowerCase())
+                        )
+                        .map(supplier => (
+                          <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{supplier.name}</span>
+                              {supplier.phone && (
+                                <span className="text-xs text-muted-foreground">{supplier.phone}</span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      }
+                      {suppliers.filter(s =>
+                        s.name.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
+                        s.phone?.toLowerCase().includes(supplierSearchTerm.toLowerCase())
+                      ).length === 0 && (
+                        <div className="p-4 text-sm text-muted-foreground text-center">
+                          No suppliers found
                         </div>
-                      </SelectItem>
-                    ))}
+                      )}
+                    </div>
                   </SelectContent>
                 </Select>
               </div>
@@ -972,22 +1144,57 @@ export default function PurchasesPage() {
                           <Label className="text-sm font-medium">Product</Label>
                           <Select
                             value={item.productId}
-                            onValueChange={(value) => updateItem(index, 'productId', value)}
+                            onValueChange={(value) => {
+                              updateItem(index, 'productId', value);
+                              setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
+                            }}
+                            onOpenChange={(open) => {
+                              if (!open) setProductSearchTerms(prev => ({ ...prev, [index]: '' }));
+                            }}
                           >
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder="Select product" />
                             </SelectTrigger>
-                            <SelectContent>
-                              {products.map(product => (
-                                <SelectItem key={product.id} value={product.id.toString()}>
-                                  <div className="flex flex-col items-start py-1">
-                                    <span className="font-medium text-sm">{product.name}</span>
-                                    <span className="text-xs text-muted-foreground mt-0.5">
-                                      Stock: {product.stockQuantity} | Default Price: LKR {(product.defaultPricePerKg ?? 0).toFixed(2)}
-                                    </span>
+                            <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]" sideOffset={5}>
+                              <div className="sticky top-0 z-10 bg-popover p-2 border-b">
+                                <div className="relative">
+                                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    placeholder="Search products..."
+                                    value={productSearchTerms[index] || ''}
+                                    onChange={(e) => setProductSearchTerms(prev => ({ ...prev, [index]: e.target.value }))}
+                                    className="pl-8 h-8"
+                                    onClick={(e) => e.stopPropagation()}
+                                    onKeyDown={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                              </div>
+                              <div className="max-h-[240px] overflow-y-auto">
+                                {products
+                                  .filter(product =>
+                                    product.name.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase()) ||
+                                    product.sku?.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase())
+                                  )
+                                  .map(product => (
+                                    <SelectItem key={product.id} value={product.id.toString()}>
+                                      <div className="flex flex-col items-start py-1">
+                                        <span className="font-medium text-sm">{product.name}</span>
+                                        <span className="text-xs text-muted-foreground mt-0.5">
+                                          Stock: {product.stockQuantity} | Default Price: LKR {(product.defaultPricePerKg ?? 0).toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))
+                                }
+                                {products.filter(p =>
+                                  p.name.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase()) ||
+                                  p.sku?.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase())
+                                ).length === 0 && (
+                                  <div className="p-4 text-sm text-muted-foreground text-center">
+                                    No products found
                                   </div>
-                                </SelectItem>
-                              ))}
+                                )}
+                              </div>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1467,7 +1674,7 @@ export default function PurchasesPage() {
 
       {/* Enhanced Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-md max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
@@ -1475,7 +1682,7 @@ export default function PurchasesPage() {
             </DialogDescription>
           </DialogHeader>
           {selectedPurchase && (
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto max-h-[calc(90vh-140px)] pr-2">
               <Card>
                 <CardContent className="p-4">
                   <div className="space-y-2 text-sm">
@@ -1508,8 +1715,14 @@ export default function PurchasesPage() {
                   placeholder="Enter amount"
                   value={paymentFormData.amount}
                   onChange={(e) => setPaymentFormData({ ...paymentFormData, amount: e.target.value })}
+                  disabled={paymentFormData.paymentMethod === 'cheque' && paymentFormData.useExistingCheque}
                   autoFocus
                 />
+                {paymentFormData.paymentMethod === 'cheque' && paymentFormData.useExistingCheque && (
+                  <p className="text-xs text-muted-foreground">
+                    Amount is set from the selected cheque and cannot be changed
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1518,14 +1731,226 @@ export default function PurchasesPage() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent position="popper" sideOffset={5}>
                     <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
                     <SelectItem value="card">Card</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {paymentFormData.paymentMethod === 'cheque' && (
+                <Card className="bg-blue-50 dark:bg-blue-900/20">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300">
+                      <FileText className="h-4 w-4" />
+                      <span>Cheque Details</span>
+                    </div>
+
+                    {/* Toggle between existing and new cheque */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="chequeType"
+                            checked={!paymentFormData.useExistingCheque}
+                            onChange={() => {
+                              setPaymentFormData({
+                                ...paymentFormData,
+                                useExistingCheque: false,
+                                existingChequeId: null,
+                                amount: '',
+                                chequeDetails: {
+                                  chequeNumber: '',
+                                  chequeDate: new Date().toISOString().split('T')[0],
+                                  depositReminderDate: '',
+                                  payerName: '',
+                                  payeeName: '',
+                                  bankName: '',
+                                  branchName: '',
+                                  notes: ''
+                                }
+                              });
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">Enter New Cheque</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="chequeType"
+                            checked={paymentFormData.useExistingCheque}
+                            onChange={() => {
+                              setPaymentFormData({
+                                ...paymentFormData,
+                                useExistingCheque: true,
+                                amount: '',
+                                existingChequeId: null,
+                              });
+                              fetchAvailableCheques();
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">Use Existing Cheque (Received from Customer)</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Existing Cheque Selector */}
+                    {paymentFormData.useExistingCheque && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">Select Cheque *</Label>
+                        <Select
+                          value={paymentFormData.existingChequeId?.toString() || ''}
+                          onValueChange={handleExistingChequeSelect}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Choose a received cheque..." />
+                          </SelectTrigger>
+                          <SelectContent position="popper" className="max-h-[250px] overflow-y-auto w-full" sideOffset={5}>
+                            {availableCheques.length === 0 ? (
+                              <div className="p-2 text-sm text-muted-foreground">
+                                No available cheques. All received cheques are either deposited or endorsed.
+                              </div>
+                            ) : (
+                              availableCheques.map((cheque) => (
+                                <SelectItem key={cheque.id} value={cheque.id.toString()}>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold">{cheque.chequeNumber}</span>
+                                    <span className="text-muted-foreground">-</span>
+                                    <span className="font-bold">LKR {cheque.amount.toFixed(2)}</span>
+                                    <span className="text-muted-foreground text-xs">from {cheque.payerName}</span>
+                                  </div>
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                        {paymentFormData.existingChequeId ? (
+                          <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                            ✓ Cheque selected - Payment amount set to LKR {paymentFormData.amount}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">
+                            Select a received cheque to endorse it to this supplier
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Cheque Number *</Label>
+                        <Input
+                          placeholder="Cheque no."
+                          value={paymentFormData.chequeDetails.chequeNumber}
+                          onChange={(e) => setPaymentFormData({
+                            ...paymentFormData,
+                            chequeDetails: { ...paymentFormData.chequeDetails, chequeNumber: e.target.value }
+                          })}
+                          disabled={paymentFormData.useExistingCheque}
+                          className="h-9"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">Cheque Date *</Label>
+                        <Input
+                          type="date"
+                          value={paymentFormData.chequeDetails.chequeDate}
+                          onChange={(e) => setPaymentFormData({
+                            ...paymentFormData,
+                            chequeDetails: { ...paymentFormData.chequeDetails, chequeDate: e.target.value }
+                          })}
+                          disabled={paymentFormData.useExistingCheque}
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Deposit Reminder (Optional)</Label>
+                      <Input
+                        type="date"
+                        value={paymentFormData.chequeDetails.depositReminderDate}
+                        onChange={(e) => setPaymentFormData({
+                          ...paymentFormData,
+                          chequeDetails: { ...paymentFormData.chequeDetails, depositReminderDate: e.target.value }
+                        })}
+                        disabled={paymentFormData.useExistingCheque}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="h-9"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {paymentFormData.useExistingCheque
+                          ? 'Reminder date from selected cheque'
+                          : 'Set a date to remind depositing this cheque at bank'}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Payer Name (Our Company) *</Label>
+                      <Input
+                        placeholder="Name on cheque"
+                        value={paymentFormData.chequeDetails.payerName}
+                        onChange={(e) => setPaymentFormData({
+                          ...paymentFormData,
+                          chequeDetails: { ...paymentFormData.chequeDetails, payerName: e.target.value }
+                        })}
+                        disabled={paymentFormData.useExistingCheque}
+                        className="h-9"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs">Payee Name (Supplier)</Label>
+                      <Input
+                        placeholder="Pay to the order of"
+                        value={paymentFormData.chequeDetails.payeeName}
+                        onChange={(e) => setPaymentFormData({
+                          ...paymentFormData,
+                          chequeDetails: { ...paymentFormData.chequeDetails, payeeName: e.target.value }
+                        })}
+                        disabled={paymentFormData.useExistingCheque}
+                        className="h-9"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Bank Name *</Label>
+                        <Input
+                          placeholder="Bank name"
+                          value={paymentFormData.chequeDetails.bankName}
+                          onChange={(e) => setPaymentFormData({
+                            ...paymentFormData,
+                            chequeDetails: { ...paymentFormData.chequeDetails, bankName: e.target.value }
+                          })}
+                          disabled={paymentFormData.useExistingCheque}
+                          className="h-9"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-xs">Branch Name</Label>
+                        <Input
+                          placeholder="Branch"
+                          value={paymentFormData.chequeDetails.branchName}
+                          onChange={(e) => setPaymentFormData({
+                            ...paymentFormData,
+                            chequeDetails: { ...paymentFormData.chequeDetails, branchName: e.target.value }
+                          })}
+                          disabled={paymentFormData.useExistingCheque}
+                          className="h-9"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <div className="space-y-2">
                 <Label>Payment Date</Label>
@@ -1536,14 +1961,16 @@ export default function PurchasesPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Reference Number</Label>
-                <Input
-                  placeholder="Payment reference (optional)"
-                  value={paymentFormData.reference}
-                  onChange={(e) => setPaymentFormData({ ...paymentFormData, reference: e.target.value })}
-                />
-              </div>
+              {paymentFormData.paymentMethod !== 'cheque' && (
+                <div className="space-y-2">
+                  <Label>Reference Number</Label>
+                  <Input
+                    placeholder="Payment reference (optional)"
+                    value={paymentFormData.reference}
+                    onChange={(e) => setPaymentFormData({ ...paymentFormData, reference: e.target.value })}
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Notes</Label>

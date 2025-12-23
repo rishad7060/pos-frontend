@@ -24,7 +24,8 @@ import {
     Settings,
     ChevronRight,
     Menu,
-    X
+    X,
+    FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -106,6 +107,7 @@ export default function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: Admi
                 { icon: DoorOpen, label: 'Registry', route: '/admin/registry-sessions' },
                 { icon: ArrowLeftRight, label: 'Transactions', route: '/admin/cash-transactions' },
                 { icon: DollarSign, label: 'Expenses', route: '/admin/expenses' },
+                { icon: FileText, label: 'Cheques', route: '/admin/finance/cheques' },
                 { icon: Clock, label: 'Shifts', route: '/admin/shifts' },
                 { icon: RotateCcw, label: 'Refunds', route: '/admin/refunds' },
             ]
