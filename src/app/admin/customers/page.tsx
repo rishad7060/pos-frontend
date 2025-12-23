@@ -9,12 +9,14 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Search, Plus, User, Phone, Mail, MapPin, DollarSign, ShoppingBag, Edit2, Trash2, Eye, CreditCard, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, Plus, User, Phone, Mail, MapPin, DollarSign, ShoppingBag, Edit2, Trash2, Eye, CreditCard, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { toast } from 'sonner';
 import { formatCurrency, toNumber } from '@/lib/number-utils';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { CustomerListSkeleton } from '@/components/skeletons/CustomerCardSkeleton';
 
 interface Customer {
   id: number;
@@ -54,31 +56,40 @@ export default function CustomersPage() {
     description: ''
   });
 
+  // Delete Confirmation State
+  const [deleteCustomerConfirmOpen, setDeleteCustomerConfirmOpen] = useState(false);
+  const [forceDeleteConfirmOpen, setForceDeleteConfirmOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<CustomerWithCredit | null>(null);
+  const [deleteErrorDetails, setDeleteErrorDetails] = useState<any>(null);
+
   useEffect(() => {
     fetchCustomers();
   }, []);
 
   const fetchCustomers = async () => {
     try {
+      // PERFORMANCE FIX: Backend now returns creditBalance directly in the response
+      // Previously: Made 100+ additional API calls to fetch credit balance for each customer
+      // Now: Single API call with all data included (100x faster!)
       const response = await fetchWithAuth('/api/customers?limit=100');
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers');
+      }
+
       const data = await response.json();
 
-      // Fetch credit balance for each customer
-      const customersWithCredit = await Promise.all(
-        data.map(async (customer: Customer) => {
-          try {
-            const creditRes = await fetchWithAuth(`/api/customer-credits?customerId=${customer.id}&limit=1`);
-            const creditData = await creditRes.json();
-            const creditBalance = creditData.length > 0 ? creditData[0].balance : 0;
-            return { ...customer, creditBalance };
-          } catch {
-            return { ...customer, creditBalance: 0 };
-          }
-        })
-      );
-
-      setCustomers(customersWithCredit);
+      // Ensure data is an array before setting it
+      if (Array.isArray(data)) {
+        setCustomers(data);
+      } else {
+        console.error('Expected array but got:', data);
+        setCustomers([]);
+        toast.error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Fetch customers error:', error);
+      setCustomers([]);
       toast.error('Failed to fetch customers');
     } finally {
       setLoading(false);
@@ -115,20 +126,85 @@ export default function CustomersPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this customer?')) return;
+  const handleDelete = (customer: CustomerWithCredit) => {
+    setCustomerToDelete(customer);
+    setDeleteCustomerConfirmOpen(true);
+  };
+
+  const confirmDeleteCustomer = async (forceDelete: boolean = false) => {
+    if (!customerToDelete) return;
+
+    let shouldShowForceDelete = false;
 
     try {
-      const response = await fetchWithAuth(`/api/customers?id=${id}`, {
+      const url = forceDelete
+        ? `/api/customers?id=${customerToDelete.id}&force=true`
+        : `/api/customers?id=${customerToDelete.id}`;
+
+      const response = await fetchWithAuth(url, {
         method: 'DELETE'
       });
 
-      if (!response.ok) throw new Error();
+      const data = await response.json();
 
-      toast.success('Customer deleted');
+      if (!response.ok) {
+        // Check if force delete is available (admin only)
+        if (data.details && data.details.canForceDelete && !forceDelete) {
+          // Save error details for the force delete dialog
+          setDeleteErrorDetails(data);
+          setDeleteCustomerConfirmOpen(false);
+          shouldShowForceDelete = true;
+          // Small delay for smooth transition
+          setTimeout(() => {
+            setForceDeleteConfirmOpen(true);
+          }, 100);
+          return;
+        }
+
+        // Show error toast for non-admin users or other errors
+        toast.error(data.error || 'Cannot delete customer', {
+          description: data.details?.suggestion ? `💡 ${data.details.suggestion}` : undefined,
+          duration: 6000
+        });
+
+        setDeleteCustomerConfirmOpen(false);
+        setCustomerToDelete(null);
+        return;
+      }
+
+      // Success!
+      if (forceDelete) {
+        toast.success('Customer Force Deleted', {
+          description: `${customerToDelete.name} was deleted. Action logged in audit trail.`,
+          icon: '⚠️'
+        });
+      } else {
+        toast.success('Customer Deleted', {
+          description: `${customerToDelete.name} has been deleted successfully.`
+        });
+      }
+
       fetchCustomers();
-    } catch (error) {
-      toast.error('Failed to delete customer');
+
+      // Clean up state
+      setDeleteCustomerConfirmOpen(false);
+      setForceDeleteConfirmOpen(false);
+      setCustomerToDelete(null);
+      setDeleteErrorDetails(null);
+
+    } catch (err: any) {
+      toast.error('Delete Failed', {
+        description: err.message || 'An unexpected error occurred.',
+        duration: 5000
+      });
+
+      // Only clean up if NOT showing force delete dialog
+      if (!shouldShowForceDelete) {
+        setDeleteCustomerConfirmOpen(false);
+        setForceDeleteConfirmOpen(false);
+        setCustomerToDelete(null);
+        setDeleteErrorDetails(null);
+      }
     }
   };
 
@@ -253,9 +329,7 @@ export default function CustomersPage() {
       </Card>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-        </div>
+        <CustomerListSkeleton count={9} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {sortedCustomers.map((customer) => (
@@ -313,7 +387,7 @@ export default function CustomersPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDelete(customer.id)}
+                      onClick={() => handleDelete(customer)}
                       className="text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -502,6 +576,103 @@ export default function CustomersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Regular Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteCustomerConfirmOpen}
+        onOpenChange={setDeleteCustomerConfirmOpen}
+        title="Delete Customer"
+        description={
+          <div>
+            Are you sure you want to delete customer <strong>&quot;{customerToDelete?.name}&quot;</strong>?
+            <br />
+            <span className="text-sm text-muted-foreground mt-2 block">
+              This action cannot be undone.
+            </span>
+          </div>
+        }
+        confirmText="Delete"
+        variant="danger"
+        onConfirm={() => confirmDeleteCustomer(false)}
+      />
+
+      {/* Force Delete Confirmation Dialog (Admin Only) */}
+      <ConfirmationDialog
+        open={forceDeleteConfirmOpen}
+        onOpenChange={(open) => {
+          setForceDeleteConfirmOpen(open);
+          if (!open) {
+            // Clean up when dialog is closed/cancelled
+            setCustomerToDelete(null);
+            setDeleteErrorDetails(null);
+          }
+        }}
+        title="Force Delete Customer"
+        description={
+          <div className="space-y-4 text-sm leading-relaxed">
+            {/* Warning Section - Credit Balance or Recent Orders */}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-4">
+              <p className="font-semibold text-amber-900 dark:text-amber-300 mb-2">Cannot delete customer</p>
+
+              {deleteErrorDetails?.details?.creditBalance !== undefined && deleteErrorDetails.details.creditBalance !== 0 && (
+                <div className="space-y-1">
+                  <p className="text-gray-900 dark:text-gray-300">
+                    This customer has a pending{' '}
+                    <strong className="text-amber-950 dark:text-amber-200">
+                      {deleteErrorDetails.details.balanceType === 'debt' ? 'debt' : 'credit'}
+                    </strong>
+                    {' '}balance of{' '}
+                    <strong className="text-amber-950 dark:text-amber-200">
+                      {formatCurrency(deleteErrorDetails.details.absoluteBalance || Math.abs(deleteErrorDetails.details.creditBalance))}
+                    </strong>
+                  </p>
+                </div>
+              )}
+
+              {deleteErrorDetails?.details?.recentOrdersCount > 0 && (
+                <p className="text-gray-900 dark:text-gray-300 mt-2">
+                  This customer has <strong>{deleteErrorDetails.details.recentOrdersCount}</strong> order(s) within the last 90 days.
+                </p>
+              )}
+            </div>
+
+            {/* Suggestion Section */}
+            {deleteErrorDetails?.details?.suggestion && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:bg-blue-900/20 p-4">
+                <p className="font-medium text-blue-900 dark:text-blue-200 mb-1">💡 Suggested action</p>
+                <p className="text-gray-900 dark:text-gray-300">{deleteErrorDetails.details.suggestion}</p>
+              </div>
+            )}
+
+            {/* Admin Override Section */}
+            <div className="rounded-lg border border-red-200 bg-red-50 dark:bg-red-900/20 p-4">
+              <div className="flex gap-3">
+                <ShieldAlert className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-red-900 dark:text-red-300 mb-1">Admin Override</p>
+                  <p className="text-gray-900 dark:text-gray-300 text-sm">
+                    This action will permanently remove the customer
+                    {deleteErrorDetails?.details?.creditBalance !== 0 && (
+                      <span>
+                        {' '}with a <strong>{deleteErrorDetails?.details?.balanceType}</strong> balance of{' '}
+                        <strong>{formatCurrency(deleteErrorDetails?.details?.absoluteBalance || 0)}</strong>
+                      </span>
+                    )}
+                    {' '}and bypass all safety checks. The deletion will be recorded in the audit log with the credit balance amount.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-900 font-medium dark:text-gray-300 pt-2">
+              Do you want to proceed with force delete?
+            </p>
+          </div>
+        }
+        confirmText="Force Delete"
+        variant="warning"
+        onConfirm={() => confirmDeleteCustomer(true)}
+      />
     </div>
   );
 }

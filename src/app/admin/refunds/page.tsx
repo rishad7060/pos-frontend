@@ -78,8 +78,20 @@ export default function RefundsPage() {
   const fetchData = async () => {
     try {
       const refundsRes = await fetch('/api/refunds?limit=100');
-      setRefunds(await refundsRes.json());
+      if (!refundsRes.ok) {
+        throw new Error('Failed to fetch refunds');
+      }
+      const data = await refundsRes.json();
+      if (Array.isArray(data)) {
+        setRefunds(data);
+      } else {
+        console.error('Expected refunds array but got:', data);
+        setRefunds([]);
+        toast.error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Fetch refunds error:', error);
+      setRefunds([]);
       toast.error('Failed to fetch data');
     } finally {
       setLoading(false);

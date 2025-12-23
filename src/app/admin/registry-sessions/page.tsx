@@ -69,6 +69,11 @@ interface Order {
   id: number;
   orderNumber: string;
   cashierId: number;
+  cashier?: {
+    id: number;
+    fullName: string;
+    email: string;
+  };
   total: number;
   paymentMethod: string;
   status: string;

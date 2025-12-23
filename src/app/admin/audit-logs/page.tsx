@@ -49,9 +49,24 @@ export default function AuditLogsPage() {
       params.append('limit', '100');
 
       const response = await fetch(`/api/audit-logs?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch audit logs');
+      }
+
       const data = await response.json();
-      setLogs(data);
+
+      // Validate that we got an array
+      if (Array.isArray(data)) {
+        setLogs(data);
+      } else {
+        console.error('Expected logs array but got:', data);
+        setLogs([]);
+        toast.error('Invalid response format from server');
+      }
     } catch (error) {
+      console.error('Fetch logs error:', error);
+      setLogs([]);
       toast.error('Failed to fetch audit logs');
     } finally {
       setLoading(false);

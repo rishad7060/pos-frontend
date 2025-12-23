@@ -218,10 +218,17 @@ export default function ExpensesPage() {
     try {
       const response = await fetch(`/api/expenses?limit=100&startDate=${start}&endDate=${end}`);
       if (response.ok) {
-        setExpenses(await response.json());
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setExpenses(data);
+        } else {
+          console.error('Expected expenses array but got:', data);
+          setExpenses([]);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch expenses');
+      setExpenses([]);
     }
   };
 

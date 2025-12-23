@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Search, Plus, Building2, Phone, Mail, MapPin, DollarSign, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Building2, Phone, Mail, MapPin, DollarSign, Edit2, Trash2, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
@@ -244,7 +244,16 @@ export default function SuppliersPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      onClick={() => router.push(`/admin/suppliers/${supplier.id}`)}
+                      title="View Details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
                       onClick={() => openEditDialog(supplier)}
+                      title="Edit Supplier"
                     >
                       <Edit2 className="h-4 w-4" />
                     </Button>
@@ -253,6 +262,7 @@ export default function SuppliersPage() {
                       variant="ghost"
                       onClick={() => handleDelete(supplier.id, supplier.name)}
                       className="text-destructive"
+                      title="Delete Supplier"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

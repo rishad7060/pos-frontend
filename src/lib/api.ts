@@ -42,11 +42,18 @@ class ApiClient {
       (headers as any).Authorization = `Bearer ${token}`;
     }
 
+    // PERFORMANCE FIX: Add timeout to prevent hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
     try {
       const response = await fetch(url, {
         ...options,
         headers,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       // Check if response has content
       const contentType = response.headers.get('content-type');
@@ -114,6 +121,19 @@ class ApiClient {
 
       return { data };
     } catch (error: any) {
+      clearTimeout(timeoutId);
+
+      // PERFORMANCE FIX: Handle timeout errors specifically
+      if (error.name === 'AbortError') {
+        console.error('API request timed out:', endpoint);
+        return {
+          error: {
+            code: 'TIMEOUT_ERROR',
+            message: 'Request timed out. The server is taking too long to respond. Please try again.',
+          },
+        };
+      }
+
       console.error('API request failed:', error);
       return {
         error: {

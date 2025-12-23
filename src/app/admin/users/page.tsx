@@ -15,6 +15,7 @@ import { ArrowLeft, Plus, Trash2, Edit, LogOut, User, Key, AlertTriangle, Histor
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { GenericCardGridSkeleton } from '@/components/skeletons/TableSkeleton';
 
 interface UserData {
   id: number;
@@ -420,11 +421,19 @@ export default function UsersPage() {
   if (loading) {
     return (
       <AuthGuard requireRole="admin">
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading...</p>
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+              <Button variant="ghost" onClick={() => router.push('/admin')}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
+                <p className="text-gray-600 dark:text-gray-400">Manage system users and their roles</p>
+              </div>
+            </div>
           </div>
+          <GenericCardGridSkeleton count={6} />
         </div>
       </AuthGuard>
     );

@@ -153,14 +153,42 @@ export default function PurchasesPage() {
         fetch('/api/products?isActive=true&limit=200')
       ]);
 
-      const purchasesData = await purchasesRes.json();
-      setPurchases(purchasesData);
-      setSuppliers(await suppliersRes.json());
-      setProducts(await productsRes.json());
+      // Check if responses are OK
+      if (!purchasesRes.ok || !suppliersRes.ok || !productsRes.ok) {
+        throw new Error('Failed to fetch data');
+      }
 
-      // Calculate stats
-      calculateStats(purchasesData);
+      const purchasesData = await purchasesRes.json();
+      const suppliersData = await suppliersRes.json();
+      const productsData = await productsRes.json();
+
+      // Validate that we got arrays
+      if (Array.isArray(purchasesData)) {
+        setPurchases(purchasesData);
+        calculateStats(purchasesData);
+      } else {
+        console.error('Expected purchases array but got:', purchasesData);
+        setPurchases([]);
+      }
+
+      if (Array.isArray(suppliersData)) {
+        setSuppliers(suppliersData);
+      } else {
+        console.error('Expected suppliers array but got:', suppliersData);
+        setSuppliers([]);
+      }
+
+      if (Array.isArray(productsData)) {
+        setProducts(productsData);
+      } else {
+        console.error('Expected products array but got:', productsData);
+        setProducts([]);
+      }
     } catch (error) {
+      console.error('Fetch data error:', error);
+      setPurchases([]);
+      setSuppliers([]);
+      setProducts([]);
       toast.error('Failed to fetch data');
     } finally {
       setLoading(false);

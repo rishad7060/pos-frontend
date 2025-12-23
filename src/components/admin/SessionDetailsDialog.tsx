@@ -59,6 +59,11 @@ export interface Order {
     id: number;
     orderNumber: string;
     cashierId: number;
+    cashier?: {
+        id: number;
+        fullName: string;
+        email: string;
+    };
     total: number;
     paymentMethod: string;
     status: string;
@@ -295,6 +300,7 @@ export function SessionDetailsDialog({
                                                 <th className="px-3 py-2 text-left font-semibold text-slate-500">Order #</th>
                                                 <th className="px-3 py-2 text-left font-semibold text-slate-500">Time</th>
                                                 <th className="px-3 py-2 text-left font-semibold text-slate-500">Method</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-slate-500">Cashier</th>
                                                 <th className="px-3 py-2 text-right font-semibold text-slate-500">Total</th>
                                             </tr>
                                         </thead>
@@ -304,6 +310,7 @@ export function SessionDetailsDialog({
                                                     <td className="px-3 py-2 font-medium text-slate-900">{order.orderNumber}</td>
                                                     <td className="px-3 py-2 text-slate-500">{new Date(order.createdAt).toLocaleTimeString()}</td>
                                                     <td className="px-3 py-2 capitalize text-slate-700">{order.paymentMethod}</td>
+                                                    <td className="px-3 py-2 text-slate-700">{order.cashier?.fullName || 'Unknown'}</td>
                                                     <td className="px-3 py-2 text-right font-mono font-medium text-slate-900">
                                                         {order.total.toFixed(2)}
                                                     </td>

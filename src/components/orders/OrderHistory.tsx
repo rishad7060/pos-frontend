@@ -47,6 +47,11 @@ interface Order {
   id: number;
   orderNumber: string;
   cashierId: number;
+  cashier?: {
+    id: number;
+    fullName: string;
+    email: string;
+  };
   subtotal: number;
   discountAmount: number;
   discountPercent: number;
@@ -67,6 +72,8 @@ export default function OrderHistory() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [searchDate, setSearchDate] = useState('');
+  const [selectedCashier, setSelectedCashier] = useState('');
+  const [cashiers, setCashiers] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<{ order: Order; items: OrderItem[]; payments?: PaymentDetail[] } | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
@@ -82,8 +89,11 @@ export default function OrderHistory() {
     const currentUser = getAuthUser();
     setUser(currentUser);
     if (currentUser) {
-      fetchOrders(currentUser, '', 0, true);
+      fetchOrders(currentUser, '', '', 0, true);
       fetchPrinterSettings();
+      if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+        fetchCashiers();
+      }
     }
   }, []);
 
@@ -121,7 +131,19 @@ export default function OrderHistory() {
     }
   };
 
-  const fetchOrders = async (currentUser: any, date?: string, pageNum: number = 0, reset: boolean = false) => {
+  const fetchCashiers = async () => {
+    try {
+      const response = await fetch('/api/users?role=cashier');
+      if (response.ok) {
+        const data = await response.json();
+        setCashiers(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch cashiers:', err);
+    }
+  };
+
+  const fetchOrders = async (currentUser: any, date?: string, cashierId?: string, pageNum: number = 0, reset: boolean = false) => {
     if (reset) {
       setLoading(true);
     } else {
@@ -136,6 +158,9 @@ export default function OrderHistory() {
       // If cashier, only show their orders
       if (currentUser.role === 'cashier') {
         url += `&cashierId=${currentUser.id}`;
+      } else if (cashierId) {
+        // Admin/Manager filtering by specific cashier
+        url += `&cashierId=${cashierId}`;
       }
 
       if (date) {
@@ -174,8 +199,8 @@ export default function OrderHistory() {
     if (!user || !hasMore || loadingMore) return;
     const nextPage = page + 1;
     setPage(nextPage);
-    fetchOrders(user, searchDate, nextPage, false);
-  }, [user, page, searchDate, hasMore, loadingMore]);
+    fetchOrders(user, searchDate, selectedCashier, nextPage, false);
+  }, [user, page, searchDate, selectedCashier, hasMore, loadingMore]);
 
   const viewOrderDetails = async (orderId: number) => {
     try {
@@ -623,16 +648,17 @@ export default function OrderHistory() {
     if (user) {
       setPage(0);
       setHasMore(true);
-      fetchOrders(user, searchDate, 0, true);
+      fetchOrders(user, searchDate, selectedCashier, 0, true);
     }
   };
 
   const handleClearSearch = () => {
     setSearchDate('');
+    setSelectedCashier('');
     if (user) {
       setPage(0);
       setHasMore(true);
-      fetchOrders(user, '', 0, true);
+      fetchOrders(user, '', '', 0, true);
     }
   };
 
@@ -658,6 +684,24 @@ export default function OrderHistory() {
                   onChange={(e) => setSearchDate(e.target.value)}
                 />
               </div>
+              {user && (user.role === 'admin' || user.role === 'manager') && cashiers.length > 0 && (
+                <div className="flex-1 max-w-xs space-y-2">
+                  <Label htmlFor="cashierFilter">Filter by Cashier</Label>
+                  <select
+                    id="cashierFilter"
+                    value={selectedCashier}
+                    onChange={(e) => setSelectedCashier(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <option value="">All Cashiers</option>
+                    {cashiers.map((cashier) => (
+                      <option key={cashier.id} value={cashier.id}>
+                        {cashier.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <Button onClick={handleSearch}>
                 <Search className="h-4 w-4 mr-2" />
                 Search
@@ -725,6 +769,10 @@ export default function OrderHistory() {
                         <div>
                           <span className="text-muted-foreground">Subtotal:</span>
                           <div className="font-medium">LKR {(order.subtotal ?? 0).toFixed(2)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Cashier:</span>
+                          <div className="font-medium">{order.cashier?.fullName || 'Unknown'}</div>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Total:</span>

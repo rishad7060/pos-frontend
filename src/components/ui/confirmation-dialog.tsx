@@ -86,7 +86,7 @@ export function ConfirmationDialog({
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
           <div className="flex items-start gap-4">
-            <div className={cn('p-3 rounded-full', config.iconBg)}>
+            <div className={cn('p-3 rounded-full', config.buttonClass)}>
               <Icon className={cn('h-6 w-6', config.iconColor)} />
             </div>
             <div className="flex-1">

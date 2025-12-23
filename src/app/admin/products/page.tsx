@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { getAuthUser, logout } from '@/lib/auth';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
-import { ArrowLeft, Plus, Trash2, Edit, LogOut, User, Package, AlertTriangle, Search, Grid3x3, List, Download, Upload, TrendingUp, TrendingDown, Bell, BellOff, Image as ImageIcon, Tag, Folder } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Edit, LogOut, User, Package, AlertTriangle, Search, Grid3x3, List, Download, Upload, TrendingUp, TrendingDown, Bell, BellOff, Image as ImageIcon, Tag, Folder, ShieldAlert } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ProductListSkeleton } from '@/components/skeletons/ProductCardSkeleton';
+import { toast } from 'sonner';
 
 interface Product {
   id: number;
@@ -103,7 +105,9 @@ export default function ProductsPage() {
   const [deleteCategoryConfirmOpen, setDeleteCategoryConfirmOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<{ id: number; name: string } | null>(null);
   const [deleteProductConfirmOpen, setDeleteProductConfirmOpen] = useState(false);
+  const [forceDeleteConfirmOpen, setForceDeleteConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [deleteErrorDetails, setDeleteErrorDetails] = useState<any>(null);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
   useEffect(() => {
@@ -122,9 +126,17 @@ export default function ProductsPage() {
         throw new Error(data.error || 'Failed to fetch products');
       }
 
-      setProducts(data);
+      // Validate that we got an array
+      if (Array.isArray(data)) {
+        setProducts(data);
+      } else {
+        console.error('Expected products array but got:', data);
+        setProducts([]);
+        setError('Invalid response format from server');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to fetch products');
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -139,9 +151,16 @@ export default function ProductsPage() {
         throw new Error(data.error || 'Failed to fetch categories');
       }
 
-      setCategories(data);
+      // Validate that we got an array
+      if (Array.isArray(data)) {
+        setCategories(data);
+      } else {
+        console.error('Expected categories array but got:', data);
+        setCategories([]);
+      }
     } catch (err: any) {
       console.error('Failed to fetch categories:', err);
+      setCategories([]);
     }
   };
 
@@ -436,27 +455,83 @@ export default function ProductsPage() {
     setDeleteProductConfirmOpen(true);
   };
 
-  const confirmDeleteProduct = async () => {
+  const confirmDeleteProduct = async (forceDelete: boolean = false) => {
     if (!productToDelete) return;
 
+    let shouldShowForceDelete = false;
+
     try {
-      const response = await fetchWithAuth(`/api/products?id=${productToDelete.id}`, {
+      const url = forceDelete
+        ? `/api/products?id=${productToDelete.id}&force=true`
+        : `/api/products?id=${productToDelete.id}`;
+
+      const response = await fetchWithAuth(url, {
         method: 'DELETE',
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete product');
+        // Check if force delete is available
+        if (data.details && data.details.canForceDelete && !forceDelete) {
+          // Save error details and show force delete confirmation dialog
+          setDeleteErrorDetails(data);
+          setDeleteProductConfirmOpen(false);
+          shouldShowForceDelete = true;
+          // Don't show toast, we'll show the force delete dialog instead
+          setTimeout(() => {
+            setForceDeleteConfirmOpen(true);
+          }, 100);
+          return;
+        }
+
+        // Show error toast with details (for non-admin or other errors)
+        if (data.details && data.details.suggestion) {
+          toast.error(data.error, {
+            description: `💡 ${data.details.suggestion}`,
+            duration: 6000,
+          });
+        } else {
+          toast.error(data.error || 'Failed to delete product');
+        }
+
+        // Close dialog for regular errors
+        setDeleteProductConfirmOpen(false);
+        setProductToDelete(null);
+        return;
       }
 
-      setSuccess(`Product ${productToDelete.name} deleted successfully!`);
+      // Show success toast
+      if (forceDelete) {
+        toast.success('Product Force Deleted', {
+          description: `${productToDelete.name} was deleted. Action logged in audit trail.`,
+          icon: '⚠️',
+        });
+      } else {
+        toast.success('Product Deleted', {
+          description: `${productToDelete.name} has been deleted successfully.`,
+        });
+      }
+
       fetchProducts();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete product');
-    } finally {
+
+      // Clean up after success
       setDeleteProductConfirmOpen(false);
+      setForceDeleteConfirmOpen(false);
       setProductToDelete(null);
+      setDeleteErrorDetails(null);
+    } catch (err: any) {
+      toast.error('Delete Failed', {
+        description: err.message || 'An unexpected error occurred.',
+      });
+
+      // Clean up after error
+      if (!shouldShowForceDelete) {
+        setDeleteProductConfirmOpen(false);
+        setForceDeleteConfirmOpen(false);
+        setProductToDelete(null);
+        setDeleteErrorDetails(null);
+      }
     }
   };
 
@@ -466,20 +541,47 @@ export default function ProductsPage() {
   };
 
   const confirmBulkDelete = async () => {
-    setError('');
-    setSuccess('');
-
     try {
-      const deletePromises = Array.from(selectedProducts).map(id =>
-        fetchWithAuth(`/api/products?id=${id}`, { method: 'DELETE' })
+      const results = await Promise.allSettled(
+        Array.from(selectedProducts).map(async id => {
+          const response = await fetchWithAuth(`/api/products?id=${id}`, { method: 'DELETE' });
+          const data = await response.json();
+          return { id, success: response.ok, data, response };
+        })
       );
 
-      await Promise.all(deletePromises);
-      setSuccess(`${selectedProducts.size} product(s) deleted successfully!`);
-      setSelectedProducts(new Set());
+      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
+
+      if (failed.length === 0) {
+        toast.success('Bulk Delete Complete', {
+          description: `Successfully deleted ${succeeded} product(s).`,
+        });
+        setSelectedProducts(new Set());
+      } else if (succeeded > 0) {
+        // Partial success
+        const firstError = failed[0];
+        const errorMsg = firstError.status === 'fulfilled' ? firstError.value.data.error : 'Unknown error';
+        toast.warning('Partial Success', {
+          description: `${succeeded} deleted, ${failed.length} failed. ${errorMsg}`,
+          duration: 7000,
+        });
+        setSelectedProducts(new Set());
+      } else {
+        // All failed
+        const firstError = failed[0];
+        const errorMsg = firstError.status === 'fulfilled' ? firstError.value.data.error : 'Unknown error';
+        toast.error('Bulk Delete Failed', {
+          description: errorMsg,
+          duration: 5000,
+        });
+      }
+
       fetchProducts();
     } catch (err: any) {
-      setError('Failed to delete some products');
+      toast.error('Delete Failed', {
+        description: 'An unexpected error occurred while deleting products.',
+      });
     } finally {
       setBulkDeleteConfirmOpen(false);
     }
@@ -1071,10 +1173,7 @@ export default function ProductsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading products...</p>
-        </div>
+        <ProductListSkeleton count={9} />
       ) : filteredProducts.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -1549,17 +1648,109 @@ export default function ProductsPage() {
         onConfirm={confirmDeleteProduct}
       />
 
-      {/* Bulk Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={bulkDeleteConfirmOpen}
-        onOpenChange={setBulkDeleteConfirmOpen}
-        title="Delete Multiple Products"
-        description={`Are you sure you want to delete ${selectedProducts.size} product(s)? This action cannot be undone.`}
-        confirmText="Delete All"
-        cancelText="Cancel"
-        variant="danger"
-        onConfirm={confirmBulkDelete}
-      />
+      {/* Force Delete Confirmation Dialog (Admin Only) */}
+<ConfirmationDialog
+  open={forceDeleteConfirmOpen}
+  onOpenChange={(open) => {
+    setForceDeleteConfirmOpen(open);
+    if (!open) {
+      setProductToDelete(null);
+      setDeleteErrorDetails(null);
+    }
+  }}
+  title="Force Delete Product"
+  description={
+    <div className="space-y-4 text-sm leading-relaxed">
+
+      {/* ❌ Delete Block Reason */}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <p className="font-semibold text-amber-800 mb-1">
+          Cannot delete product
+        </p>
+
+        {deleteErrorDetails?.details?.activeOrdersCount && (
+          <p className="text-gray-700">
+            This product was used in{' '}
+            <strong>
+              {deleteErrorDetails.details.activeOrdersCount}
+            </strong>{' '}
+            order(s) within the last 30 days.
+          </p>
+        )}
+
+        {deleteErrorDetails?.details?.pendingPurchaseCount && (
+          <p className="text-gray-700 mt-1">
+            There are{' '}
+            <strong>
+              {deleteErrorDetails.details.pendingPurchaseCount}
+            </strong>{' '}
+            pending purchase order(s).
+          </p>
+        )}
+      </div>
+
+      {/* 💡 Suggested Action */}
+      {deleteErrorDetails?.details?.suggestion && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <p className="font-medium text-gray-900 mb-1">
+            Suggested action
+          </p>
+          <p className="text-gray-600">
+            {deleteErrorDetails.details.suggestion}
+          </p>
+        </div>
+      )}
+
+      {/* 🚨 Admin Override */}
+      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+        <div className="flex gap-3">
+          <ShieldAlert className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-red-700 mb-1">
+              Admin Override
+            </p>
+            <p className="text-gray-700 text-sm">
+              This action will permanently remove the product and bypass all
+              safety checks. The deletion will be recorded in the audit log.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation text */}
+      <p className="text-muted-foreground pt-2">
+        Are you sure you want to continue?
+      </p>
+    </div>
+  }
+  confirmText="Force Delete"
+  cancelText="Cancel"
+  variant="warning"
+  onConfirm={() => confirmDeleteProduct(true)}
+/>
+
+{/* 🗑️ Bulk Delete Confirmation Dialog */}
+<ConfirmationDialog
+  open={bulkDeleteConfirmOpen}
+  onOpenChange={setBulkDeleteConfirmOpen}
+  title="Delete Multiple Products"
+  description={
+    <div className="space-y-2 text-sm">
+      <p>
+        You are about to delete{' '}
+        <strong>{selectedProducts.size}</strong> product(s).
+      </p>
+      <p className="text-muted-foreground">
+        This action is permanent and cannot be undone.
+      </p>
+    </div>
+  }
+  confirmText="Delete All"
+  cancelText="Cancel"
+  variant="danger"
+  onConfirm={confirmBulkDelete}
+/>
+
     </div >
 
   );

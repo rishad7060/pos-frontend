@@ -23,6 +23,7 @@ import {
   User,
   Calendar
 } from 'lucide-react';
+import { DashboardSkeleton } from '@/components/skeletons/DashboardSkeleton';
 
 interface DashboardStats {
   period: string;
@@ -157,10 +158,7 @@ export default function DashboardPage() {
         {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
           {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
-            </div>
+            <DashboardSkeleton />
           ) : error ? (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

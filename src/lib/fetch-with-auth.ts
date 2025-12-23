@@ -1,6 +1,8 @@
 // Client-side fetch wrapper that automatically adds auth token
 // Use this instead of fetch() for API calls
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
 export async function fetchWithAuth(
   url: string,
   options: RequestInit = {}
@@ -22,8 +24,11 @@ export async function fetchWithAuth(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  // Construct full URL - if relative URL, prepend backend base URL
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+
   // Make the fetch request with updated headers
-  return fetch(url, {
+  return fetch(fullUrl, {
     ...options,
     headers,
   });

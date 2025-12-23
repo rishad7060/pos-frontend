@@ -33,6 +33,14 @@ export default function SettingsPage() {
       color: 'text-purple-600 dark:text-purple-400',
       bgColor: 'bg-purple-50 dark:bg-purple-250',
     },
+    {
+      title: 'Credit Alert Settings',
+      description: 'Configure overdue customer credit alerts and notification thresholds',
+      icon: Bell,
+      href: '/admin/settings/credit-alerts',
+      color: 'text-orange-600 dark:text-orange-400',
+      bgColor: 'bg-orange-50 dark:bg-orange-250',
+    },
   ];
 
   return (

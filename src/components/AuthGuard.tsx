@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { getAuthUser, User } from '@/lib/auth';
 
 interface AuthGuardProps {
@@ -11,35 +11,46 @@ interface AuthGuardProps {
 
 export default function AuthGuard({ children, requireRole }: AuthGuardProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentUser = getAuthUser();
-    
-    if (!currentUser) {
-      router.push('/login');
-      return;
-    }
+    // Check authentication on every route change
+    const checkAuth = () => {
+      const currentUser = getAuthUser();
+      const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
 
-    if (requireRole && currentUser.role !== requireRole) {
-      // Check if role is allowed (managers can access admin areas, cashiers cannot)
-      const allowedRoles = requireRole === 'admin' ? ['admin', 'manager'] : [requireRole];
-
-      if (!allowedRoles.includes(currentUser.role)) {
-        // Redirect based on role
-        if (currentUser.role === 'admin' || currentUser.role === 'manager') {
-          router.push('/admin');
-        } else {
-          router.push('/pos');
-        }
+      // CRITICAL FIX SEC-003: Verify both user and token exist
+      if (!currentUser || !token) {
+        setUser(null);
+        setLoading(false);
+        router.push('/login');
         return;
       }
-    }
 
-    setUser(currentUser);
-    setLoading(false);
-  }, [router, requireRole]);
+      // CRITICAL FIX AUTH-005: Validate user role
+      if (requireRole && currentUser.role !== requireRole) {
+        // Check if role is allowed (managers can access admin areas, cashiers cannot)
+        const allowedRoles = requireRole === 'admin' ? ['admin', 'manager'] : [requireRole];
+
+        if (!allowedRoles.includes(currentUser.role)) {
+          // Redirect based on role
+          if (currentUser.role === 'admin' || currentUser.role === 'manager') {
+            router.push('/admin');
+          } else {
+            router.push('/pos');
+          }
+          return;
+        }
+      }
+
+      setUser(currentUser);
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, [router, requireRole, pathname]); // Re-check on route change
 
   if (loading) {
     return (

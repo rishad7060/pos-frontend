@@ -5,6 +5,9 @@ import type { NextConfig } from "next";
 // Using a minimal custom SW in public/sw.js
 
 const nextConfig: NextConfig = {
+  // Enable standalone output for Docker deployments
+  output: 'standalone',
+
   images: {
     remotePatterns: [
       {

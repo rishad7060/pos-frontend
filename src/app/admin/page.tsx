@@ -29,6 +29,7 @@ import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import OverdueCustomersAlert from '@/components/admin/OverdueCustomersAlert';
 
 export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
@@ -109,6 +110,9 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Overdue Customers Alert - Shows on login */}
+      <OverdueCustomersAlert />
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
         <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
         <div className="flex items-center space-x-2 w-full sm:w-auto">
