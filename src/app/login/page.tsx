@@ -111,12 +111,12 @@ export default function LoginPage() {
             </Button>
           </div>
 
-          <div className="mt-6 pt-4 border-t text-center text-sm text-muted-foreground">
+          {/* <div className="mt-6 pt-4 border-t text-center text-sm text-muted-foreground">
             <p className="font-medium mb-2">Default Admin Account:</p>
             <div className="space-y-1">
               <p className="font-mono text-xs">admin@pos.com / admin123</p>
             </div>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>
