@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getAuthUser, logout } from '@/lib/auth';
-import { ArrowLeft, Search, Printer, Eye, LogOut, User, Banknote, CreditCard, Wallet, Loader2, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, Printer, Eye, LogOut, User, Banknote, CreditCard, Wallet, Loader2, ChevronDown, FileText, Receipt } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -37,7 +37,7 @@ interface OrderItem {
 
 interface PaymentDetail {
   id: number;
-  paymentType: 'cash' | 'card' | 'mobile';
+  paymentType: 'cash' | 'card' | 'mobile' | 'cheque' | 'credit';
   amount: number;
   cardType?: string;
   reference?: string;
@@ -239,6 +239,10 @@ export default function OrderHistory() {
         return <CreditCard className="h-4 w-4" />;
       case 'mobile':
         return <Wallet className="h-4 w-4" />;
+      case 'cheque':
+        return <FileText className="h-4 w-4" />;
+      case 'credit':
+        return <Receipt className="h-4 w-4" />;
       default:
         return null;
     }
@@ -873,7 +877,9 @@ export default function OrderHistory() {
                                             </div>
                                             {payment.reference && (
                                               <div className="text-xs text-muted-foreground mt-1">
-                                                Ref: {payment.reference}
+                                                {payment.paymentType === 'cheque'
+                                                  ? `Cheque No: ${payment.reference}`
+                                                  : `Ref: ${payment.reference}`}
                                               </div>
                                             )}
                                           </CardContent>

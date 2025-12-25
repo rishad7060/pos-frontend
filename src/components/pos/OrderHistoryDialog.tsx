@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Search, Eye, RotateCcw, Banknote, CreditCard, Wallet, Loader2, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, Eye, RotateCcw, Banknote, CreditCard, Wallet, Loader2, X, ChevronDown, ChevronUp, FileText, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, toNumber } from '@/lib/number-utils';
 
@@ -44,7 +44,7 @@ interface OrderItem {
 
 interface PaymentDetail {
   id: number;
-  paymentType: 'cash' | 'card' | 'mobile';
+  paymentType: 'cash' | 'card' | 'mobile' | 'cheque' | 'credit';
   amount: number;
   cardType?: string;
   reference?: string;
@@ -183,6 +183,10 @@ export function OrderHistoryDialog({
         return <CreditCard className="h-3.5 w-3.5" />;
       case 'mobile':
         return <Wallet className="h-3.5 w-3.5" />;
+      case 'cheque':
+        return <FileText className="h-3.5 w-3.5" />;
+      case 'credit':
+        return <Receipt className="h-3.5 w-3.5" />;
       default:
         return null;
     }
@@ -435,7 +439,16 @@ export function OrderHistoryDialog({
                             <Badge variant="outline" className="text-xs">{payment.cardType.toUpperCase()}</Badge>
                           )}
                         </div>
-                        <span className="font-bold text-sm">{formatCurrency(payment.amount)}</span>
+                        <div className="text-right text-sm">
+                          <div className="font-bold">{formatCurrency(payment.amount)}</div>
+                          {payment.reference && (
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              {payment.paymentType === 'cheque'
+                                ? `Cheque No: ${payment.reference}`
+                                : `Ref: ${payment.reference}`}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </CardContent>

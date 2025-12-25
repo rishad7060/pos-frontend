@@ -273,6 +273,7 @@ export default function PaymentDialog({
           id: '1',
           type: 'cheque',
           amount: orderTotal,
+          reference: chequeNumber,
           chequeDetails: {
             chequeNumber,
             chequeDate,
@@ -331,9 +332,18 @@ export default function PaymentDialog({
       }
 
       setProcessing(true);
+      const normalizedSplitPayments = splitPayments.map((payment) => {
+        if (payment.type === 'cheque' && payment.chequeDetails?.chequeNumber) {
+          return {
+            ...payment,
+            reference: payment.chequeDetails.chequeNumber,
+          };
+        }
+        return payment;
+      });
       onPaymentComplete({
         paymentMethod: 'split',
-        payments: splitPayments,
+        payments: normalizedSplitPayments,
       });
     }
   };
