@@ -619,11 +619,10 @@ export default function PurchasesPage() {
     if (!purchaseToCancel) return;
 
     try {
-      const response = await fetch('/api/purchases', {
+      const response = await fetch(`/api/purchases?id=${purchaseToCancel}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: purchaseToCancel,
           status: 'cancelled'
         })
       });
