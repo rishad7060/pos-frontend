@@ -99,6 +99,11 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [chequeNumber, setChequeNumber] = useState('');
+  const [chequeDate, setChequeDate] = useState('');
+  const [chequeDepositReminderDate, setChequeDepositReminderDate] = useState('');
+  const [chequePayerName, setChequePayerName] = useState('');
+  const [chequeBankName, setChequeBankName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
@@ -138,6 +143,26 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       return;
     }
 
+    // Validate cheque details when paying by cheque
+    if (paymentMethod === 'cheque') {
+      if (!chequeNumber.trim()) {
+        toast.error('Please enter cheque number');
+        return;
+      }
+      if (!chequeDate) {
+        toast.error('Please select cheque date');
+        return;
+      }
+      if (!chequePayerName.trim()) {
+        toast.error('Please enter payer name');
+        return;
+      }
+      if (!chequeBankName.trim()) {
+        toast.error('Please enter bank name');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const response = await fetch('/api/customer-credits', {
@@ -145,8 +170,8 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: customer?.id,
-          transactionType: 'payment',
-          amount: -amount, // Negative to reduce balance
+          transactionType: 'debit',
+          amount, // Backend enforces negative sign for debit (customer payment)
           description: `Payment received via ${paymentMethod}${paymentNotes ? ` - ${paymentNotes}` : ''}`,
         }),
       });
@@ -155,10 +180,46 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         throw new Error('Failed to record payment');
       }
 
+      // If payment was made by cheque, also register cheque in finance module (best-effort)
+      if (paymentMethod === 'cheque' && customer) {
+        try {
+          const chequeResponse = await fetch('/api/cheques', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chequeNumber,
+              chequeDate,
+              amount,
+              payerName: chequePayerName,
+              // Payee is optional; can be shop name or left blank
+              bankName: chequeBankName,
+              branchName: undefined,
+              transactionType: 'received',
+              depositReminderDate: chequeDepositReminderDate || undefined,
+              customerId: customer.id,
+              notes: paymentNotes || `Cheque received for customer credit payment`,
+            }),
+          });
+
+          if (!chequeResponse.ok) {
+            console.error('Failed to register cheque for customer payment');
+            toast.warning('Payment recorded, but failed to register cheque record');
+          }
+        } catch (error) {
+          console.error('Error while registering cheque:', error);
+          toast.warning('Payment recorded, but an error occurred while saving cheque details');
+        }
+      }
+
       toast.success('Payment recorded successfully');
       setPaymentDialogOpen(false);
       setPaymentAmount('');
       setPaymentNotes('');
+      setChequeNumber('');
+      setChequeDate('');
+      setChequeDepositReminderDate('');
+      setChequePayerName('');
+      setChequeBankName('');
       fetchCustomerDetails();
     } catch (error) {
       toast.error('Failed to record payment');
@@ -183,6 +244,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       card: { variant: 'secondary', label: 'Card' },
       credit: { variant: 'destructive', label: 'Credit' },
       split: { variant: 'outline', label: 'Split' },
+      cheque: { variant: 'outline', label: 'Cheque' },
     };
     return variants[method] || { variant: 'outline', label: method };
   };
@@ -552,9 +614,65 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                   <SelectItem value="card">Card</SelectItem>
                   <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                   <SelectItem value="mobile">Mobile Payment</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {paymentMethod === 'cheque' && (
+              <div className="space-y-3 border rounded-md p-3 bg-slate-50">
+                <p className="text-xs font-semibold text-slate-700">Cheque Details</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="chequeNumber">Cheque Number *</Label>
+                    <Input
+                      id="chequeNumber"
+                      value={chequeNumber}
+                      onChange={(e) => setChequeNumber(e.target.value)}
+                      placeholder="Enter cheque number"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="chequeDate">Cheque Date *</Label>
+                    <Input
+                      id="chequeDate"
+                      type="date"
+                      value={chequeDate}
+                      onChange={(e) => setChequeDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="chequePayer">Payer Name *</Label>
+                    <Input
+                      id="chequePayer"
+                      value={chequePayerName}
+                      onChange={(e) => setChequePayerName(e.target.value)}
+                      placeholder="Name on cheque"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="chequeBank">Bank Name *</Label>
+                    <Input
+                      id="chequeBank"
+                      value={chequeBankName}
+                      onChange={(e) => setChequeBankName(e.target.value)}
+                      placeholder="Bank name"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="chequeReminder">Deposit Reminder (Optional)</Label>
+                    <Input
+                      id="chequeReminder"
+                      type="date"
+                      value={chequeDepositReminderDate}
+                      onChange={(e) => setChequeDepositReminderDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  These details will also be saved in the Cheques module as a received cheque for this customer.
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
