@@ -52,6 +52,12 @@ interface Order {
     fullName: string;
     email: string;
   };
+  customer?: {
+    id?: number;
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
   subtotal: number;
   discountAmount: number;
   discountPercent: number;
@@ -774,6 +780,10 @@ export default function OrderHistory() {
                           <span className="text-muted-foreground">Cashier:</span>
                           <div className="font-medium">{order.cashier?.fullName || 'Unknown'}</div>
                         </div>
+                         <div>
+                          <span className="text-muted-foreground">Customer:</span>
+                          <div className="font-medium">{order.customer?.name || 'Unknown'}</div>
+                        </div>
                         <div>
                           <span className="text-muted-foreground">Total:</span>
                           <div className="font-bold text-lg text-primary">
@@ -801,7 +811,7 @@ export default function OrderHistory() {
                           </DialogHeader>
                           {selectedOrder && (
                             <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                                 <div>
                                   <span className="text-muted-foreground">Date:</span>
                                   <div className="font-medium">
@@ -821,6 +831,18 @@ export default function OrderHistory() {
                                       {getPaymentIcon(selectedOrder.order.paymentMethod)}
                                       {selectedOrder.order.paymentMethod}
                                     </Badge>
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Cashier:</span>
+                                  <div className="font-medium">
+                                    {selectedOrder.order.cashier?.fullName || 'Unknown'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Customer:</span>
+                                  <div className="font-medium">
+                                    {selectedOrder.order.customer?.name || 'Unknown'}
                                   </div>
                                 </div>
                               </div>
