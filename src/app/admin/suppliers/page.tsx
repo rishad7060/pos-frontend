@@ -13,6 +13,7 @@ import { ArrowLeft, Search, Plus, Building2, Phone, Mail, MapPin, DollarSign, Ed
 import { toast } from 'sonner';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import AddSupplierCreditDialog from '@/components/admin/AddSupplierCreditDialog';
 
 interface Supplier {
   id: number;
@@ -36,6 +37,8 @@ export default function SuppliersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [creditSupplier, setCreditSupplier] = useState<{ id: number; name: string } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     contactPerson: '',
@@ -143,6 +146,17 @@ export default function SuppliersPage() {
     }
   };
 
+  const openCreditDialog = (supplier: Supplier) => {
+    setCreditSupplier({ id: supplier.id, name: supplier.name });
+    setCreditDialogOpen(true);
+  };
+
+  const handleCreditSuccess = () => {
+    fetchSuppliers();
+    setCreditDialogOpen(false);
+    setCreditSupplier(null);
+  };
+
   const openEditDialog = (supplier: Supplier) => {
     setEditingSupplier(supplier);
     setFormData({
@@ -241,6 +255,15 @@ export default function SuppliersPage() {
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openCreditDialog(supplier)}
+                      title="Add Manual Credit/Debit"
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <DollarSign className="h-4 w-4" />
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -429,6 +452,21 @@ export default function SuppliersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {creditSupplier && (
+        <AddSupplierCreditDialog
+          open={creditDialogOpen}
+          onOpenChange={(open) => {
+            setCreditDialogOpen(open);
+            if (!open) {
+              setCreditSupplier(null);
+            }
+          }}
+          supplierId={creditSupplier.id}
+          supplierName={creditSupplier.name}
+          onSuccess={handleCreditSuccess}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <ConfirmationDialog
