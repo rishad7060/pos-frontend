@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import ChequeDetailsDialog from '@/components/admin/ChequeDetailsDialog';
 import CreateChequeDialog from '@/components/admin/CreateChequeDialog';
 
@@ -117,6 +117,8 @@ export default function ChequesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [startDateFilter, setStartDateFilter] = useState('');
+  const [endDateFilter, setEndDateFilter] = useState('');
   const [selectedCheque, setSelectedCheque] = useState<Cheque | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -124,12 +126,24 @@ export default function ChequesPage() {
   useEffect(() => {
     fetchCheques();
     fetchStats();
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, startDateFilter, endDateFilter]);
 
   const fetchCheques = async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
+
+      const parseDmyToIso = (value: string): string | null => {
+        try {
+          const parsed = parse(value, 'dd/MM/yyyy', new Date());
+          if (isNaN(parsed.getTime())) {
+            return null;
+          }
+          return format(parsed, 'yyyy-MM-dd');
+        } catch {
+          return null;
+        }
+      };
 
       if (statusFilter !== 'all') {
         params.append('status', statusFilter);
@@ -137,6 +151,20 @@ export default function ChequesPage() {
 
       if (typeFilter !== 'all') {
         params.append('transactionType', typeFilter);
+      }
+
+      if (startDateFilter) {
+        const iso = parseDmyToIso(startDateFilter);
+        if (iso) {
+          params.append('startDate', iso);
+        }
+      }
+
+      if (endDateFilter) {
+        const iso = parseDmyToIso(endDateFilter);
+        if (iso) {
+          params.append('endDate', iso);
+        }
       }
 
       params.append('limit', '100');
@@ -276,42 +304,130 @@ export default function ChequesPage() {
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search by cheque no., payer, bank..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+        <CardContent className="p-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Text search */}
+            <div className="space-y-1 md:col-span-2">
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Search className="h-3 w-3" />
+                <span>Search cheques</span>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by cheque no., payer, bank, customer, supplier..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="whitespace-nowrap"
+                  onClick={() => {
+                    // Re-fetch with current filters in case server-side data changed
+                    fetchCheques();
+                    fetchStats();
+                  }}
+                >
+                  <Search className="h-4 w-4 mr-1" />
+                  Search
+                </Button>
+              </div>
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="deposited">Deposited</SelectItem>
-                <SelectItem value="cleared">Cleared</SelectItem>
-                <SelectItem value="bounced">Bounced</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Status filter */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Filter className="h-3 w-3" />
+                <span>Status</span>
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="deposited">Deposited</SelectItem>
+                  <SelectItem value="cleared">Cleared</SelectItem>
+                  <SelectItem value="bounced">Bounced</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="received">Received (from customers)</SelectItem>
-                <SelectItem value="issued">Issued (to suppliers)</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Type filter */}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Filter className="h-3 w-3" />
+                <span>Type</span>
+              </div>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="received">Received (from customers)</SelectItem>
+                  <SelectItem value="issued">Issued (to suppliers)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Date range */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div className="space-y-1 md:col-span-2">
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Calendar className="h-3 w-3" />
+                <span>Date range (cheque date)</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/YYYY"
+                    value={startDateFilter}
+                    onChange={(e) => setStartDateFilter(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/YYYY"
+                    value={endDateFilter}
+                    onChange={(e) => setEndDateFilter(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-start md:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setTypeFilter('all');
+                  setStartDateFilter('');
+                  setEndDateFilter('');
+                  fetchCheques();
+                  fetchStats();
+                }}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

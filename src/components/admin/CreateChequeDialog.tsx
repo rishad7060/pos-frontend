@@ -22,6 +22,7 @@ import {
 import { FileText, Save, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
+import { format, parse } from 'date-fns';
 
 interface CreateChequeDialogProps {
   open: boolean;
@@ -37,8 +38,8 @@ export default function CreateChequeDialog({
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
     chequeNumber: '',
-    chequeDate: new Date().toISOString().split('T')[0],
-    depositReminderDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+    chequeDate: format(new Date(), 'dd/MM/yyyy'),
+    depositReminderDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy'), // 7 days from now
     amount: '',
     payerName: '',
     payeeName: '',
@@ -48,6 +49,19 @@ export default function CreateChequeDialog({
     notes: '',
   });
 
+  const parseDmyToIso = (value: string, fieldLabel: string): string | null => {
+    try {
+      const parsed = parse(value, 'dd/MM/yyyy', new Date());
+      if (isNaN(parsed.getTime())) {
+        throw new Error('Invalid date');
+      }
+      return format(parsed, 'yyyy-MM-dd');
+    } catch {
+      toast.error(`Please enter a valid ${fieldLabel} in DD/MM/YYYY format`);
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -56,7 +70,7 @@ export default function CreateChequeDialog({
       return;
     }
     if (!formData.chequeDate) {
-      toast.error('Please select cheque date');
+      toast.error('Please enter cheque date');
       return;
     }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
@@ -75,13 +89,29 @@ export default function CreateChequeDialog({
     try {
       setCreating(true);
 
+      const chequeDateIso = parseDmyToIso(formData.chequeDate, 'cheque date');
+      if (!chequeDateIso) {
+        setCreating(false);
+        return;
+      }
+
+      let depositReminderIso: string | null = null;
+      if (formData.depositReminderDate) {
+        const parsed = parseDmyToIso(formData.depositReminderDate, 'deposit reminder date');
+        if (!parsed) {
+          setCreating(false);
+          return;
+        }
+        depositReminderIso = parsed;
+      }
+
       const response = await fetchWithAuth('/api/cheques', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chequeNumber: formData.chequeNumber,
-          chequeDate: formData.chequeDate,
-          depositReminderDate: formData.depositReminderDate || null,
+          chequeDate: chequeDateIso,
+          depositReminderDate: depositReminderIso,
           amount: parseFloat(formData.amount),
           payerName: formData.payerName,
           payeeName: formData.payeeName || null,
@@ -96,8 +126,8 @@ export default function CreateChequeDialog({
         toast.success('Cheque created successfully');
         setFormData({
           chequeNumber: '',
-          chequeDate: new Date().toISOString().split('T')[0],
-          depositReminderDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          chequeDate: format(new Date(), 'dd/MM/yyyy'),
+          depositReminderDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'dd/MM/yyyy'),
           amount: '',
           payerName: '',
           payeeName: '',
@@ -190,7 +220,9 @@ export default function CreateChequeDialog({
               <Label htmlFor="chequeDate">Cheque Date *</Label>
               <Input
                 id="chequeDate"
-                type="date"
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/YYYY"
                 value={formData.chequeDate}
                 onChange={(e) => setFormData({ ...formData, chequeDate: e.target.value })}
               />
@@ -200,7 +232,9 @@ export default function CreateChequeDialog({
               <Label htmlFor="depositReminderDate">Deposit Reminder Date</Label>
               <Input
                 id="depositReminderDate"
-                type="date"
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/YYYY"
                 value={formData.depositReminderDate}
                 onChange={(e) => setFormData({ ...formData, depositReminderDate: e.target.value })}
               />

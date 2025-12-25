@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, toNumber } from '@/lib/number-utils';
+import { format as formatDateFns, parse as parseDateFns } from 'date-fns';
 
 interface Customer {
   id: number;
@@ -163,6 +164,19 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       }
     }
 
+    const parseDmyToIso = (value: string, fieldLabel: string): string | null => {
+      try {
+        const parsed = parseDateFns(value, 'dd/MM/yyyy', new Date());
+        if (isNaN(parsed.getTime())) {
+          throw new Error('Invalid date');
+        }
+        return formatDateFns(parsed, 'yyyy-MM-dd');
+      } catch {
+        toast.error(`Please enter a valid ${fieldLabel} in DD/MM/YYYY format`);
+        return null;
+      }
+    };
+
     setSubmitting(true);
     try {
       const response = await fetch('/api/customer-credits', {
@@ -183,19 +197,35 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       // If payment was made by cheque, also register cheque in finance module (best-effort)
       if (paymentMethod === 'cheque' && customer) {
         try {
+          const chequeDateIso = parseDmyToIso(chequeDate, 'cheque date');
+          if (!chequeDateIso) {
+            setSubmitting(false);
+            return;
+          }
+
+          let depositReminderIso: string | undefined;
+          if (chequeDepositReminderDate) {
+            const parsed = parseDmyToIso(chequeDepositReminderDate, 'deposit reminder date');
+            if (!parsed) {
+              setSubmitting(false);
+              return;
+            }
+            depositReminderIso = parsed;
+          }
+
           const chequeResponse = await fetch('/api/cheques', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chequeNumber,
-              chequeDate,
+              chequeDate: chequeDateIso,
               amount,
               payerName: chequePayerName,
               // Payee is optional; can be shop name or left blank
               bankName: chequeBankName,
               branchName: undefined,
               transactionType: 'received',
-              depositReminderDate: chequeDepositReminderDate || undefined,
+              depositReminderDate: depositReminderIso,
               customerId: customer.id,
               notes: paymentNotes || `Cheque received for customer credit payment`,
             }),
@@ -635,7 +665,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     <Label htmlFor="chequeDate">Cheque Date *</Label>
                     <Input
                       id="chequeDate"
-                      type="date"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="DD/MM/YYYY"
                       value={chequeDate}
                       onChange={(e) => setChequeDate(e.target.value)}
                     />
@@ -662,7 +694,9 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                     <Label htmlFor="chequeReminder">Deposit Reminder (Optional)</Label>
                     <Input
                       id="chequeReminder"
-                      type="date"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="DD/MM/YYYY"
                       value={chequeDepositReminderDate}
                       onChange={(e) => setChequeDepositReminderDate(e.target.value)}
                     />
