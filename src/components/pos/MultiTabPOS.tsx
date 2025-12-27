@@ -482,22 +482,30 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
     ));
   };
 
-  const updateActiveTabDiscount = (discount: number) => {
+  const updateActiveTabDiscount = (discountPercent: number) => {
     // Check if cashier can apply discounts
     if (!permissions?.canApplyDiscount) {
       toast.error('You do not have permission to apply discounts');
       return;
     }
 
-    // Check max discount limit
-    const maxDiscount = permissions?.maxDiscountPercent || 0;
-    if (discount > maxDiscount) {
-      toast.error(`Maximum discount allowed: ${maxDiscount}%`);
+    // Check max discount limit (still stored as percentage in permissions)
+    const maxDiscountPercent = permissions?.maxDiscountPercent || 0;
+    if (discountPercent > maxDiscountPercent) {
+      // Also calculate max discount amount for clearer message
+      const activeTab = orderTabs.find(t => t.id === activeTabId);
+      const subtotal = activeTab ? activeTab.cart.reduce((sum, item) => sum + item.finalTotal, 0) : 0;
+      const maxAmount = subtotal * (maxDiscountPercent / 100);
+      toast.error(
+        maxAmount > 0
+          ? `Maximum discount allowed: LKR ${maxAmount.toFixed(2)} (${maxDiscountPercent}%)`
+          : `Maximum discount allowed: ${maxDiscountPercent}%`
+      );
       return;
     }
 
     setOrderTabs(orderTabs.map(tab =>
-      tab.id === activeTabId ? { ...tab, orderDiscount: discount } : tab
+      tab.id === activeTabId ? { ...tab, orderDiscount: discountPercent } : tab
     ));
   };
 
@@ -1206,16 +1214,37 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 md:gap-4">
           <div className="relative flex-1 group">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span className="text-muted-foreground text-xs sm:text-sm font-medium">%</span>
+              <span className="text-muted-foreground text-xs sm:text-sm font-medium">LKR</span>
             </div>
             <Input
               type="number"
               min="0"
-              max={permissions?.canApplyDiscount ? permissions.maxDiscountPercent : 0}
-              placeholder={permissions?.canApplyDiscount ? "Add Discount" : "No permission"}
+              max={permissions?.canApplyDiscount ? orderSubtotal * ((permissions.maxDiscountPercent || 0) / 100) : 0}
+              placeholder={permissions?.canApplyDiscount ? "Discount amount" : "No permission"}
               className="pl-7 sm:pl-8 h-9 sm:h-10 text-xs sm:text-sm bg-muted/30 border-transparent hover:bg-muted/50 focus:bg-background focus:border-primary/50 transition-all font-medium"
-              value={activeTab?.orderDiscount || ''}
-              onChange={(e) => updateActiveTabDiscount(parseFloat(e.target.value) || 0)}
+              value={orderDiscountAmount > 0 ? orderDiscountAmount : ''}
+              onChange={(e) => {
+                const value = parseFloat(e.target.value);
+                if (!permissions?.canApplyDiscount) return;
+
+                const subtotal = orderSubtotal;
+                if (subtotal <= 0) {
+                  updateActiveTabDiscount(0);
+                  return;
+                }
+
+                const rawAmount = isNaN(value) ? 0 : value;
+                const maxPercent = permissions.maxDiscountPercent || 0;
+                const maxAmount = subtotal * (maxPercent / 100);
+
+                if (rawAmount > maxAmount) {
+                  toast.error(`Maximum discount allowed: LKR ${maxAmount.toFixed(2)} (${maxPercent}%)`);
+                  return;
+                }
+
+                const discountPercent = (rawAmount / subtotal) * 100;
+                updateActiveTabDiscount(discountPercent);
+              }}
               disabled={!permissions?.canApplyDiscount}
               readOnly={!permissions?.canApplyDiscount}
             />
@@ -1236,7 +1265,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
 
           {orderDiscountAmount > 0 && (
             <div className="flex justify-between text-xs sm:text-sm text-destructive animate-in fade-in slide-in-from-right-5 duration-300">
-              <span className="font-medium">Discount ({activeTab?.orderDiscount}%)</span>
+              <span className="font-medium">Discount{activeTab ? ` (${activeTab.orderDiscount.toFixed(2)}%)` : ''}</span>
               <span>- LKR {orderDiscountAmount.toFixed(2)}</span>
             </div>
           )}
