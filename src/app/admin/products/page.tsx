@@ -119,7 +119,7 @@ export default function ProductsPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await fetchWithAuth('/api/products?limit=100');
+      const response = await fetchWithAuth('/api/products?limit=200');
       const data = await response.json();
 
       if (!response.ok) {
