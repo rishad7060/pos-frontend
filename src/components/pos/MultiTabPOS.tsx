@@ -362,7 +362,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
     setProductsLoading(true);
     try {
       // TEAM_003: Use offline-aware API for product fetching
-      const result = await offlineApi.getProducts({ isActive: true, limit: 100 });
+      const result = await offlineApi.getProducts({ isActive: true, limit: 200 });
 
       if (result.error) {
         throw new Error(result.error.message || 'Failed to fetch products');

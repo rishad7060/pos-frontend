@@ -105,7 +105,7 @@ export default function POSOrderEntry({ cashierId, onOrderComplete }: POSOrderEn
   const fetchProducts = async () => {
     setProductsLoading(true);
     try {
-      const result = await api.getProducts({ isActive: true, limit: 100 });
+      const result = await api.getProducts({ isActive: true, limit: 200 });
 
       if (result.error) {
         throw new Error(result.error.message || 'Failed to fetch products');
