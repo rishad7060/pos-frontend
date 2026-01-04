@@ -116,7 +116,7 @@ export function OrderHistoryDialog({
         throw new Error(data.error || 'Failed to fetch orders');
       }
 
-      setOrders(data);
+      setOrders(Array.isArray(data) ? data : []);
     } catch (error: any) {
       toast.error(error.message || 'Failed to fetch orders');
     } finally {
@@ -395,7 +395,7 @@ export function OrderHistoryDialog({
                 <CardContent className="pt-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <p className="text-muted-foreground text-xs">Date & Time</p>
+                      <p className="text-muted-foreground text-xs">Date && Time</p>
                       <p className="font-semibold">
                         {new Date(selectedOrder.order.createdAt).toLocaleString('en-US', {
                           month: 'short',

@@ -63,6 +63,9 @@ export function RefundsDialog({ open, onOpenChange, cashierId, canProcessRefunds
   const [ordersLimit, setOrdersLimit] = useState(10);
   const [showSearchFilters, setShowSearchFilters] = useState(false);
 
+  // Cash tracking state
+  const [cashHandedToCustomer, setCashHandedToCustomer] = useState(false);
+
   const [formData, setFormData] = useState({
     refundType: 'full',
     refundAmount: 0,
@@ -99,6 +102,7 @@ export function RefundsDialog({ open, onOpenChange, cashierId, canProcessRefunds
     setRecentOrders([]);
     setOrdersLimit(10);
     setShowSearchFilters(false);
+    setCashHandedToCustomer(false);  // Reset cash handed state
     setFormData({
       refundType: 'full',
       refundAmount: 0,
@@ -332,10 +336,13 @@ export function RefundsDialog({ open, onOpenChange, cashierId, canProcessRefunds
       const refundData = {
         originalOrderId: selectedOrder.id,
         cashierId,
+        customerId: (selectedOrder as any).customerId || null,  // Include customer ID
+        registrySessionId: registrySessionId || null,  // Link to current registry session
         refundType: formData.refundType,
         reason: formData.reason.trim(),
         totalAmount,
         refundMethod: formData.refundMethod,
+        cashHandedToCustomer: formData.refundMethod === 'cash' ? cashHandedToCustomer : false,  // Cash tracking
         items: validItems.map(item => ({
           orderItemId: item.orderItemId,
           productId: item.productId,
@@ -593,11 +600,28 @@ export function RefundsDialog({ open, onOpenChange, cashierId, canProcessRefunds
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="card">Card Reversal</SelectItem>
-                      <SelectItem value="credit">Store Credit</SelectItem>
+                      <SelectItem value="cash">💵 Cash</SelectItem>
+                      <SelectItem value="card">💳 Card Reversal</SelectItem>
+                      <SelectItem value="mobile">📱 Mobile Payment</SelectItem>
+                      <SelectItem value="credit">🎫 Store Credit</SelectItem>
+                      <SelectItem value="cheque">📄 Cheque</SelectItem>
                     </SelectContent>
                   </Select>
+                  {formData.refundMethod === 'credit' && (
+                    <p className="text-xs text-blue-600">
+                      ℹ️ Store credit will be added to customer's account balance. Does not affect cash drawer.
+                    </p>
+                  )}
+                  {formData.refundMethod === 'cheque' && (
+                    <p className="text-xs text-purple-600">
+                      ℹ️ Full refund returns original cheque. Partial refund issues new cheque.
+                    </p>
+                  )}
+                  {(formData.refundMethod === 'card' || formData.refundMethod === 'mobile') && (
+                    <p className="text-xs text-gray-600">
+                      ℹ️ Payment gateway reversal. Does not affect cash drawer.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -712,6 +736,35 @@ export function RefundsDialog({ open, onOpenChange, cashierId, canProcessRefunds
                   })}
                 </div>
               </div>
+
+              {/* Cash Handed Checkbox - Only for cash refunds */}
+              {formData.refundMethod === 'cash' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="cashHandedToCustomer"
+                      checked={cashHandedToCustomer}
+                      onChange={(e) => setCashHandedToCustomer(e.target.checked)}
+                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <label htmlFor="cashHandedToCustomer" className="block text-sm font-medium text-gray-900 cursor-pointer">
+                        Cash has been handed to customer
+                      </label>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Check this ONLY if you have physically given the refund cash to the customer.
+                        If unchecked, the refund will not affect today's cash reconciliation until approved by admin.
+                      </p>
+                      {cashHandedToCustomer && (
+                        <p className="text-xs text-yellow-700 mt-2 font-medium">
+                          ⚠️ This refund will immediately reduce your expected cash amount for registry close.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex gap-2 pt-4 border-t">

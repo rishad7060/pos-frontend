@@ -56,18 +56,28 @@ interface PaymentDialogProps {
     cashReceived?: number;
     changeGiven?: number;
     payments?: PaymentMethod[];
+    customerPreviousBalance?: number;
+    creditUsed?: number;
+    amountPaid?: number;
+    paidToAdmin?: number;
+    paidToOldOrders?: number;
   }) => void;
 }
 
 export default function PaymentDialog({
   open,
   onOpenChange,
-  orderTotal,
-  orderSubtotal,
-  orderDiscount,
+  orderTotal: orderTotalProp,
+  orderSubtotal: orderSubtotalProp,
+  orderDiscount: orderDiscountProp,
   customer,
   onPaymentComplete,
 }: PaymentDialogProps) {
+  // Ensure all number props are actually numbers
+  const orderTotal = Number(orderTotalProp) || 0;
+  const orderSubtotal = Number(orderSubtotalProp) || 0;
+  const orderDiscount = Number(orderDiscountProp) || 0;
+
   const [paymentType, setPaymentType] = useState<'cash' | 'card' | 'mobile' | 'split' | 'credit' | 'cheque'>('cash');
   const [cashReceived, setCashReceived] = useState<number>(0);
   const [cardType, setCardType] = useState<string>('visa');
@@ -127,16 +137,32 @@ export default function PaymentDialog({
     setError('');
   };
 
-  const changeAmount = cashReceived - orderTotal;
-  const splitTotalPaid = splitPayments.reduce((sum, p) => sum + p.amount, 0);
-  const splitRemaining = orderTotal - splitTotalPaid;
+  // Calculate total due including previous customer balance
+  const customerPreviousBalance = Number(customer?.creditBalance) || 0;
+  const totalDue = customerPreviousBalance + orderTotal;
+
+  const changeAmount = cashReceived - totalDue;
+
+  // Calculate total ACTUAL payment (exclude credit type - it's unpaid amount, not payment)
+  const splitActualPaid = splitPayments
+    .filter(p => p.type !== 'credit')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // Calculate credit amount (unpaid portion)
+  const splitCreditAmount = splitPayments
+    .filter(p => p.type === 'credit')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // Total paid + unpaid should equal total due
+  const splitTotalPaid = splitActualPaid + splitCreditAmount;
+  const splitRemaining = totalDue - splitTotalPaid;
 
   const quickAmounts = [
     { label: '100', value: 100 },
     { label: '500', value: 500 },
     { label: '1000', value: 1000 },
     { label: '5000', value: 5000 },
-    { label: 'Exact', value: orderTotal },
+    { label: 'Exact', value: totalDue },
   ];
 
   const addSplitPayment = (type: 'cash' | 'card' | 'mobile' | 'credit' | 'cheque') => {
@@ -188,17 +214,51 @@ export default function PaymentDialog({
   const handlePayment = () => {
     setError('');
 
+    // Helper function to calculate credit usage with priority allocation
+    const calculateCreditTracking = (totalPaid: number) => {
+      const adminCredit = customer?.creditBreakdown?.adminCredits || 0;
+      const orderCredit = customer?.creditBreakdown?.orderCredits || 0;
+
+      let remaining = totalPaid;
+
+      // Priority 1: Pay admin credit first (manual credit, not from sales)
+      const paidToAdmin = Math.min(remaining, adminCredit);
+      remaining -= paidToAdmin;
+
+      // Priority 2: Pay current order second (this is new revenue)
+      const paidToCurrent = Math.min(remaining, orderTotal);
+      remaining -= paidToCurrent;
+
+      // Priority 3: Pay old orders last (already counted as revenue before)
+      const paidToOldOrders = Math.min(remaining, orderCredit);
+
+      return {
+        customerPreviousBalance,
+        creditUsed: paidToAdmin + paidToOldOrders, // Total paid from previous balance
+        amountPaid: paidToCurrent, // Payment to current order
+        paidToAdmin, // Track admin credit payment separately
+        paidToOldOrders, // Track old order payment separately
+      };
+    };
+
     if (paymentType === 'cash') {
-      if (cashReceived < orderTotal) {
-        setError(`Insufficient cash. Need at least LKR ${orderTotal.toFixed(2)}`);
+      if (cashReceived < totalDue) {
+        setError(`Insufficient cash. Need at least LKR ${totalDue.toFixed(2)}`);
         return;
       }
+
+      const { creditUsed, amountPaid, paidToAdmin, paidToOldOrders } = calculateCreditTracking(cashReceived);
 
       setProcessing(true);
       onPaymentComplete({
         paymentMethod: 'cash',
         cashReceived,
         changeGiven: changeAmount,
+        customerPreviousBalance,
+        creditUsed,
+        amountPaid,
+        paidToAdmin,
+        paidToOldOrders,
       });
     } else if (paymentType === 'card') {
       if (!cardReference.trim()) {
@@ -206,16 +266,23 @@ export default function PaymentDialog({
         return;
       }
 
+      const { creditUsed, amountPaid, paidToAdmin, paidToOldOrders } = calculateCreditTracking(totalDue);
+
       setProcessing(true);
       onPaymentComplete({
         paymentMethod: 'card',
         payments: [{
           id: '1',
           type: 'card',
-          amount: orderTotal,
+          amount: totalDue,
           cardType,
           reference: cardReference,
         }],
+        customerPreviousBalance,
+        creditUsed,
+        amountPaid,
+        paidToAdmin,
+        paidToOldOrders,
       });
     } else if (paymentType === 'mobile') {
       if (!mobileReference.trim()) {
@@ -223,15 +290,22 @@ export default function PaymentDialog({
         return;
       }
 
+      const { creditUsed, amountPaid, paidToAdmin, paidToOldOrders } = calculateCreditTracking(totalDue);
+
       setProcessing(true);
       onPaymentComplete({
         paymentMethod: 'mobile',
         payments: [{
           id: '1',
           type: 'mobile',
-          amount: orderTotal,
+          amount: totalDue,
           reference: mobileReference,
         }],
+        customerPreviousBalance,
+        creditUsed,
+        amountPaid,
+        paidToAdmin,
+        paidToOldOrders,
       });
     } else if (paymentType === 'credit') {
       if (!customer) {
@@ -239,14 +313,20 @@ export default function PaymentDialog({
         return;
       }
 
+      // Full credit payment - no actual payment, everything added to credit balance
       setProcessing(true);
       onPaymentComplete({
         paymentMethod: 'credit',
         payments: [{
           id: '1',
           type: 'credit',
-          amount: orderTotal,
+          amount: totalDue,
         }],
+        customerPreviousBalance,
+        creditUsed: 0,
+        amountPaid: 0,
+        paidToAdmin: 0,
+        paidToOldOrders: 0,
       });
     } else if (paymentType === 'cheque') {
       if (!chequeNumber.trim()) {
@@ -266,13 +346,15 @@ export default function PaymentDialog({
         return;
       }
 
+      const { creditUsed, amountPaid, paidToAdmin, paidToOldOrders } = calculateCreditTracking(totalDue);
+
       setProcessing(true);
       onPaymentComplete({
         paymentMethod: 'cheque',
         payments: [{
           id: '1',
           type: 'cheque',
-          amount: orderTotal,
+          amount: totalDue,
           reference: chequeNumber,
           chequeDetails: {
             chequeNumber,
@@ -285,6 +367,11 @@ export default function PaymentDialog({
             notes: chequeNotes || undefined,
           },
         }],
+        customerPreviousBalance,
+        creditUsed,
+        amountPaid,
+        paidToAdmin,
+        paidToOldOrders,
       });
     } else if (paymentType === 'split') {
       if (splitPayments.length === 0) {
@@ -292,13 +379,13 @@ export default function PaymentDialog({
         return;
       }
 
-      if (splitTotalPaid < orderTotal) {
+      if (splitTotalPaid < totalDue) {
         setError(`Insufficient payment. Still need LKR ${splitRemaining.toFixed(2)}`);
         return;
       }
 
-      if (splitTotalPaid > orderTotal) {
-        setError(`Overpayment. Reduce by LKR ${(splitTotalPaid - orderTotal).toFixed(2)}`);
+      if (splitTotalPaid > totalDue) {
+        setError(`Overpayment. Reduce by LKR ${(splitTotalPaid - totalDue).toFixed(2)}`);
         return;
       }
 
@@ -331,6 +418,9 @@ export default function PaymentDialog({
         }
       }
 
+      // Use ACTUAL payment for allocation (not including credit/unpaid amount)
+      const { creditUsed, amountPaid, paidToAdmin, paidToOldOrders } = calculateCreditTracking(splitActualPaid);
+
       setProcessing(true);
       const normalizedSplitPayments = splitPayments.map((payment) => {
         if (payment.type === 'cheque' && payment.chequeDetails?.chequeNumber) {
@@ -344,6 +434,11 @@ export default function PaymentDialog({
       onPaymentComplete({
         paymentMethod: 'split',
         payments: normalizedSplitPayments,
+        customerPreviousBalance,
+        creditUsed,
+        amountPaid,
+        paidToAdmin,
+        paidToOldOrders,
       });
     }
   };
@@ -353,7 +448,7 @@ export default function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full sm:w-[95vw] sm:max-w-3xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
             <Wallet className="h-6 w-6" />
@@ -368,9 +463,21 @@ export default function PaymentDialog({
 
         <div className="space-y-6">
           {/* Order Summary */}
-          <div className="bg-primary/5 p-4 rounded-lg space-y-2">
+          <div className="bg-primary/5 p-3 sm:p-4 rounded-lg space-y-2">
+            {customerPreviousBalance > 0 && (
+              <>
+                <div className="flex justify-between text-sm">
+                  <span className="text-destructive font-medium flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Previous Balance:
+                  </span>
+                  <span className="font-semibold text-destructive">LKR {customerPreviousBalance.toFixed(2)}</span>
+                </div>
+                <Separator className="my-2" />
+              </>
+            )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal:</span>
+              <span className="text-muted-foreground">Current Order Subtotal:</span>
               <span className="font-semibold">LKR {orderSubtotal.toFixed(2)}</span>
             </div>
             {orderDiscount > 0 && (
@@ -379,37 +486,65 @@ export default function PaymentDialog({
                 <span className="font-semibold">-LKR {orderDiscount.toFixed(2)}</span>
               </div>
             )}
-            <Separator />
-            <div className="flex justify-between text-xl font-bold">
-              <span>Total to Pay:</span>
-              <span className="text-primary">LKR {orderTotal.toFixed(2)}</span>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Current Order Total:</span>
+              <span className="font-semibold">LKR {orderTotal.toFixed(2)}</span>
             </div>
+            <Separator />
+            <div className="flex justify-between text-lg sm:text-xl font-bold">
+              <span>Total to Pay:</span>
+              <span className="text-primary text-lg sm:text-xl">LKR {totalDue.toFixed(2)}</span>
+            </div>
+            {customerPreviousBalance > 0 && (
+              <div className="text-xs text-muted-foreground text-center pt-1">
+                (Previous balance + current order)
+              </div>
+            )}
           </div>
 
           {/* Payment Method Tabs */}
           <Tabs value={paymentType} onValueChange={handlePaymentTypeChange}>
-            <TabsList className="grid grid-cols-6 w-full">
-              <TabsTrigger value="cash" className="flex items-center gap-2">
+            <TabsList className="grid grid-cols-3 sm:grid-cols-5 w-full gap-x-1 sm:gap-x-4 gap-y-2 mb-4 sm:mb-6">
+              <TabsTrigger
+                value="cash"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs sm:text-sm"
+              >
                 <Banknote className="h-4 w-4" />
                 Cash
               </TabsTrigger>
-              <TabsTrigger value="card" className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Card
-              </TabsTrigger>
-              <TabsTrigger value="mobile" className="flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                Mobile
-              </TabsTrigger>
-              <TabsTrigger value="cheque" className="flex items-center gap-2">
+
+              <TabsTrigger
+                value="cheque"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs sm:text-sm"
+              >
                 <FileText className="h-4 w-4" />
                 Cheque
               </TabsTrigger>
-              <TabsTrigger value="credit" className="flex items-center gap-2">
+              <TabsTrigger
+                value="credit"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs sm:text-sm"
+              >
                 <Receipt className="h-4 w-4" />
                 Credit
               </TabsTrigger>
-              <TabsTrigger value="split" className="flex items-center gap-2">
+                            <TabsTrigger
+                value="card"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs sm:text-sm"
+              >
+                <CreditCard className="h-4 w-4" />
+                Card
+              </TabsTrigger>
+              {/* <TabsTrigger
+                value="mobile"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs sm:text-sm"
+              >
+                <Wallet className="h-4 w-4" />
+                Mobile
+              </TabsTrigger> */}
+              <TabsTrigger
+                value="split"
+                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs sm:text-sm"
+              >
                 <Calculator className="h-4 w-4" />
                 Split
               </TabsTrigger>
@@ -432,7 +567,7 @@ export default function PaymentDialog({
                 />
               </div>
 
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {quickAmounts.map((qa) => (
                   <Button
                     key={qa.label}
@@ -496,7 +631,7 @@ export default function PaymentDialog({
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold">Amount to Charge:</span>
                     <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      LKR {orderTotal.toFixed(2)}
+                      LKR {totalDue.toFixed(2)}
                     </span>
                   </div>
                 </CardContent>
@@ -504,7 +639,7 @@ export default function PaymentDialog({
             </TabsContent>
 
             {/* Mobile Payment */}
-            <TabsContent value="mobile" className="space-y-4 mt-4">
+            {/* <TabsContent value="mobile" className="space-y-4 mt-4">
               <div className="space-y-3">
                 <Label htmlFor="mobileReference">Mobile Payment Reference</Label>
                 <Input
@@ -529,12 +664,12 @@ export default function PaymentDialog({
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold">Amount to Pay:</span>
                     <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                      LKR {orderTotal.toFixed(2)}
+                      LKR {totalDue.toFixed(2)}
                     </span>
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Cheque Payment */}
             <TabsContent value="cheque" className="space-y-4 mt-4">
@@ -650,7 +785,7 @@ export default function PaymentDialog({
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold">Cheque Amount:</span>
                     <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      LKR {orderTotal.toFixed(2)}
+                      LKR {totalDue.toFixed(2)}
                     </span>
                   </div>
                 </CardContent>
@@ -689,7 +824,7 @@ export default function PaymentDialog({
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-semibold">Amount to Credit:</span>
                         <span className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                          LKR {orderTotal.toFixed(2)}
+                          LKR {totalDue.toFixed(2)}
                         </span>
                       </div>
                     </CardContent>
@@ -723,9 +858,9 @@ export default function PaymentDialog({
                 </Alert>
               )}
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
                 <Label className="text-base">Payment Methods</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                   <Button
                     variant="outline"
                     size="sm"
@@ -744,7 +879,7 @@ export default function PaymentDialog({
                     <CreditCard className="h-4 w-4 mr-1" />
                     Card
                   </Button>
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={() => addSplitPayment('mobile')}
@@ -752,7 +887,7 @@ export default function PaymentDialog({
                   >
                     <Wallet className="h-4 w-4 mr-1" />
                     Mobile
-                  </Button>
+                  </Button> */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -955,19 +1090,19 @@ export default function PaymentDialog({
 
               {/* Split Payment Summary */}
               <Card className={splitRemaining === 0 ? 'bg-green-50 dark:bg-green-900/20' : ''}>
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
+                <CardContent className="p-3 sm:p-4 space-y-2">
+                  <div className="flex justify-between text-xs sm:text-sm">
                     <span>Total to Pay:</span>
-                    <span className="font-semibold">LKR {orderTotal.toFixed(2)}</span>
+                    <span className="font-semibold">LKR {totalDue.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between text-xs sm:text-sm">
                     <span>Total Paid:</span>
                     <span className="font-semibold">LKR {splitTotalPaid.toFixed(2)}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between text-lg font-bold">
+                  <div className="flex justify-between text-base sm:text-lg font-bold">
                     <span>{splitRemaining > 0 ? 'Remaining:' : splitRemaining < 0 ? 'Overpaid:' : 'Complete:'}</span>
-                    <span className={splitRemaining === 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'}>
+                    <span className={splitRemaining === 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive text-base sm:text-lg'}>
                       {splitRemaining === 0 ? (
                         <span className="flex items-center gap-1">
                           <CheckCircle className="h-5 w-5" />
@@ -992,17 +1127,17 @@ export default function PaymentDialog({
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Button
               onClick={handlePayment}
               disabled={processing}
-              className="flex-1 h-12 text-lg"
+              className="flex-1 h-12 text-base sm:text-lg"
               size="lg"
             >
               {processing ? (
                 <>
                   <Printer className="h-5 w-5 mr-2 animate-pulse" />
-                  Processing & Printing...
+                  Processing && Printing...
                 </>
               ) : (
                 <>
@@ -1015,7 +1150,7 @@ export default function PaymentDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={processing}
-              className="h-12"
+              className="h-12 w-full sm:w-auto"
             >
               Cancel
             </Button>

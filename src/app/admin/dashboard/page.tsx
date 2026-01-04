@@ -120,7 +120,7 @@ export default function DashboardPage() {
                 </Button>
                 <div>
                   <h1 className="text-2xl font-bold">Sales Dashboard</h1>
-                  <p className="text-sm text-muted-foreground">Analytics & Insights</p>
+                  <p className="text-sm text-muted-foreground">Analytics && Insights</p>
                 </div>
               </div>
 
@@ -338,7 +338,7 @@ export default function DashboardPage() {
                 </Card>
               </div>
 
-              {/* Low Stock Alerts & Customer Stats */}
+              {/* Low Stock Alerts && Customer Stats */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Low Stock Alerts */}
                 <Card>

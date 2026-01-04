@@ -173,7 +173,7 @@ export const PinLoginScreen = ({ onLoginSuccess, onSwitchToAdminLogin }: PinLogi
             onClick={onSwitchToAdminLogin}
             className="text-sm text-muted-foreground hover:text-primary transition-colors"
           >
-            Admin Login with Username & Password
+            Admin Login with Username && Password
           </button>
         </div>
       </Card>

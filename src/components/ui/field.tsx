@@ -82,7 +82,7 @@ function Field({
   className,
   orientation = "vertical",
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof fieldVariants>) {
+}: React.ComponentProps<"div"> && VariantProps<typeof fieldVariants>) {
   return (
     <div
       role="group"

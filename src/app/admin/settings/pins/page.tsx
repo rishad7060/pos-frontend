@@ -77,7 +77,7 @@ export default function CashierPinsPage() {
       const response = await fetch('/api/users?role=cashier');
       if (response.ok) {
         const data = await response.json();
-        setCashiers(data);
+        setCashiers(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Failed to load cashiers:', error);

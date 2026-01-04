@@ -20,7 +20,7 @@ export default function OrdersPage() {
     <AuthGuard>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <header className="bg-white dark:bg-gray-800 border-b shadow-sm">
+        <header className="bg-white dark:bg-gray-100 border-b shadow-sm">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

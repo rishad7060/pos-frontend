@@ -5,7 +5,7 @@ import AuthGuard from '@/components/AuthGuard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAuthUser, logout } from '@/lib/auth';
-import { ArrowLeft, Settings, Users, Printer, LogOut, User, Shield, Bell } from 'lucide-react';
+import { ArrowLeft, Settings, Users, Printer, LogOut, User, Shield, Bell, Database } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export default function SettingsPage() {
@@ -40,6 +40,14 @@ export default function SettingsPage() {
       href: '/admin/settings/credit-alerts',
       color: 'text-orange-600 dark:text-orange-400',
       bgColor: 'bg-orange-50 dark:bg-orange-250',
+    },
+    {
+      title: 'Database Backup',
+      description: 'Download database backups and restore from backup files',
+      icon: Database,
+      href: '/admin/settings/database',
+      color: 'text-green-600 dark:text-green-400',
+      bgColor: 'bg-green-50 dark:bg-green-250',
     },
   ];
 

@@ -11,7 +11,10 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   CreditCard,
-  Activity
+  Activity,
+  TrendingUp,
+  TrendingDown,
+  Percent
 } from 'lucide-react';
 import {
   AreaChart,
@@ -23,9 +26,11 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Legend
+  Legend,
+  ComposedChart,
+  Line
 } from 'recharts';
-import { format, subDays, startOfDay, isSameDay } from 'date-fns';
+import { format, subDays, startOfDay, isSameDay, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -44,10 +49,90 @@ export default function AdminDashboard() {
   const [salesData, setSalesData] = useState<any[]>([]);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [profitLossData, setProfitLossData] = useState<any[]>([]);
+  const [dailyProfitLoss, setDailyProfitLoss] = useState<any[]>([]);
+  const [currentMonthFinancials, setCurrentMonthFinancials] = useState({
+    totalRevenue: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    profitMargin: 0,
+  });
 
   useEffect(() => {
     fetchDashboardData();
+    fetchProfitLossData();
+    fetchDailyProfitLoss();
   }, []);
+
+  const fetchDailyProfitLoss = async () => {
+    try {
+      // Fetch financial data for last 30 days
+      const dailyData = [];
+      for (let i = 29; i >= 0; i--) {
+        const date = subDays(new Date(), i);
+        const start = startOfDay(date);
+        const end = new Date(date);
+        end.setHours(23, 59, 59, 999);
+
+        const response = await api.get(`/api/expenses/financial-summary?startDate=${format(start, 'yyyy-MM-dd')}&endDate=${format(end, 'yyyy-MM-dd')}`);
+
+        if (response.data) {
+          const { financialMetrics } = response.data;
+          dailyData.push({
+            date: format(date, 'MMM dd'),
+            fullDate: format(date, 'yyyy-MM-dd'),
+            revenue: financialMetrics.totalRevenue || 0,
+            expenses: financialMetrics.totalExpenses || 0,
+            profit: financialMetrics.netProfit || 0,
+            profitMargin: financialMetrics.profitMargin || 0,
+          });
+        }
+      }
+
+      setDailyProfitLoss(dailyData);
+    } catch (error) {
+      console.error('Failed to fetch daily profit/loss data:', error);
+    }
+  };
+
+  const fetchProfitLossData = async () => {
+    try {
+      // Fetch financial data for last 6 months
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const date = subMonths(new Date(), i);
+        const start = startOfMonth(date);
+        const end = endOfMonth(date);
+
+        const response = await api.get(`/api/expenses/financial-summary?startDate=${format(start, 'yyyy-MM-dd')}&endDate=${format(end, 'yyyy-MM-dd')}`);
+
+        if (response.data) {
+          const { financialMetrics } = response.data;
+          months.push({
+            month: format(date, 'MMM'),
+            revenue: financialMetrics.totalRevenue || 0,
+            expenses: financialMetrics.totalExpenses || 0,
+            profit: financialMetrics.netProfit || 0,
+            profitMargin: financialMetrics.profitMargin || 0,
+          });
+
+          // Store current month (latest) financials
+          if (i === 0) {
+            setCurrentMonthFinancials({
+              totalRevenue: financialMetrics.totalRevenue || 0,
+              totalExpenses: financialMetrics.totalExpenses || 0,
+              netProfit: financialMetrics.netProfit || 0,
+              profitMargin: financialMetrics.profitMargin || 0,
+            });
+          }
+        }
+      }
+
+      setProfitLossData(months);
+    } catch (error) {
+      console.error('Failed to fetch profit/loss data:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -125,7 +210,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -180,7 +265,142 @@ export default function AdminDashboard() {
             </p>
           </CardContent>
         </Card>
+
+        <Card className={currentMonthFinancials.netProfit >= 0 ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500'}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Profit (This Month)</CardTitle>
+            {currentMonthFinancials.netProfit >= 0 ? (
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-rose-600" />
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${currentMonthFinancials.netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              LKR {currentMonthFinancials.netProfit.toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+              <Percent className="h-3 w-3 mr-1" />
+              <span className={currentMonthFinancials.profitMargin >= 0 ? 'text-emerald-600 font-medium' : 'text-rose-600 font-medium'}>
+                {currentMonthFinancials.profitMargin.toFixed(1)}%
+              </span> profit margin
+            </p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Daily Revenue & P/L Chart - Full Width */}
+      <Card className="col-span-1">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg sm:text-xl">Daily Revenue & Profit/Loss</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Day-by-day financial performance over the last 30 days</CardDescription>
+        </CardHeader>
+        <CardContent className="pl-1 sm:pl-2">
+          <div className="h-[300px] sm:h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={dailyProfitLoss} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorDailyRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#888888"
+                  fontSize={10}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={4}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    padding: '12px',
+                    fontSize: '12px'
+                  }}
+                  labelFormatter={(label) => {
+                    const item = dailyProfitLoss.find(d => d.date === label);
+                    return item ? item.fullDate : label;
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const label = name === 'revenue' ? 'Revenue' :
+                                  name === 'expenses' ? 'Expenses' :
+                                  name === 'profit' ? 'Net Profit' : name;
+                    return [`LKR ${value.toFixed(2)}`, label];
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{ paddingTop: '15px', fontSize: '12px' }}
+                  iconType="rect"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  fill="url(#colorDailyRevenue)"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  name="Revenue"
+                />
+                <Bar
+                  dataKey="expenses"
+                  fill="#f59e0b"
+                  radius={[2, 2, 0, 0]}
+                  barSize={20}
+                  name="Expenses"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="profit"
+                  stroke="#10b981"
+                  strokeWidth={2.5}
+                  dot={{ fill: '#10b981', r: 3 }}
+                  activeDot={{ r: 5 }}
+                  name="Net Profit"
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Daily Summary Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t">
+            <div>
+              <p className="text-xs text-muted-foreground">Avg Daily Revenue</p>
+              <p className="text-base sm:text-lg font-bold text-blue-600">
+                LKR {dailyProfitLoss.length > 0 ? (dailyProfitLoss.reduce((sum, d) => sum + d.revenue, 0) / dailyProfitLoss.length).toFixed(0) : '0'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Avg Daily Expenses</p>
+              <p className="text-base sm:text-lg font-bold text-amber-600">
+                LKR {dailyProfitLoss.length > 0 ? (dailyProfitLoss.reduce((sum, d) => sum + d.expenses, 0) / dailyProfitLoss.length).toFixed(0) : '0'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Avg Daily Profit</p>
+              <p className={`text-base sm:text-lg font-bold ${dailyProfitLoss.length > 0 && dailyProfitLoss.reduce((sum, d) => sum + d.profit, 0) / dailyProfitLoss.length >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                LKR {dailyProfitLoss.length > 0 ? (dailyProfitLoss.reduce((sum, d) => sum + d.profit, 0) / dailyProfitLoss.length).toFixed(0) : '0'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Profitable Days</p>
+              <p className="text-base sm:text-lg font-bold text-emerald-600">
+                {dailyProfitLoss.filter(d => d.profit > 0).length} / {dailyProfitLoss.length}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts Section */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-7">
@@ -306,6 +526,116 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Profit & Loss Analysis */}
+      <Card className="col-span-1">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg sm:text-xl">Profit & Loss Analysis</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Revenue, expenses, and net profit over the last 6 months</CardDescription>
+        </CardHeader>
+        <CardContent className="pl-1 sm:pl-2">
+          <div className="h-[300px] sm:h-[350px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={profitLossData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorLoss" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="month"
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: '8px',
+                    border: 'none',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    padding: '12px'
+                  }}
+                  formatter={(value: number, name: string) => {
+                    const label = name === 'revenue' ? 'Revenue' :
+                                  name === 'expenses' ? 'Expenses' :
+                                  name === 'profit' ? 'Net Profit' : name;
+                    return [`LKR ${value.toFixed(2)}`, label];
+                  }}
+                />
+                <Legend
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="rect"
+                />
+                <Bar
+                  dataKey="revenue"
+                  fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                  barSize={40}
+                  name="Revenue"
+                />
+                <Bar
+                  dataKey="expenses"
+                  fill="#f59e0b"
+                  radius={[4, 4, 0, 0]}
+                  barSize={40}
+                  name="Expenses"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="profit"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={{ fill: '#10b981', r: 5 }}
+                  activeDot={{ r: 7 }}
+                  name="Net Profit"
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Summary Stats Below Chart */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-4 border-t">
+            <div>
+              <p className="text-xs text-muted-foreground">Total Revenue</p>
+              <p className="text-lg font-bold text-blue-600">
+                LKR {profitLossData.reduce((sum, d) => sum + d.revenue, 0).toFixed(0)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Total Expenses</p>
+              <p className="text-lg font-bold text-amber-600">
+                LKR {profitLossData.reduce((sum, d) => sum + d.expenses, 0).toFixed(0)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Net Profit (6mo)</p>
+              <p className={`text-lg font-bold ${profitLossData.reduce((sum, d) => sum + d.profit, 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                LKR {profitLossData.reduce((sum, d) => sum + d.profit, 0).toFixed(0)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Avg Profit Margin</p>
+              <p className={`text-lg font-bold ${profitLossData.reduce((sum, d) => sum + d.profitMargin, 0) / profitLossData.length >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {profitLossData.length > 0 ? (profitLossData.reduce((sum, d) => sum + d.profitMargin, 0) / profitLossData.length).toFixed(1) : '0'}%
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

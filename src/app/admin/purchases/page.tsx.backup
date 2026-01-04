@@ -41,7 +41,6 @@ interface Supplier {
 interface Product {
   id: number;
   name: string;
-  sku?: string;
   defaultPricePerKg: number;
   stockQuantity: number;
   unitType: 'weight' | 'unit';
@@ -240,28 +239,28 @@ export default function PurchasesPage() {
       const suppliersData = await suppliersRes.json();
       const productsData = await productsRes.json();
 
-      console.log('📦 Products API Response:', productsData);
-
-      // Handle paginated vs non-paginated responses
-      // Products API returns { data: [], pagination: {} }
-      const purchasesArray = Array.isArray(purchasesData) ? purchasesData : (purchasesData.data || []);
-      const suppliersArray = Array.isArray(suppliersData) ? suppliersData : (suppliersData.data || []);
-      const productsArray = Array.isArray(productsData) ? productsData : (productsData.data || []);
-
-      console.log('📦 Products array length:', productsArray.length);
-      console.log('📦 Products:', productsArray.map(p => p.name).join(', '));
-
-      // Set state
-      setPurchases(purchasesArray);
-      if (purchasesArray.length > 0) {
-        calculateStats(purchasesArray);
+      // Validate that we got arrays
+      if (Array.isArray(purchasesData)) {
+        setPurchases(purchasesData);
+        calculateStats(purchasesData);
+      } else {
+        console.error('Expected purchases array but got:', purchasesData);
+        setPurchases([]);
       }
 
-      setSuppliers(suppliersArray);
-      console.log('✅ Setting suppliers array with', suppliersArray.length, 'suppliers');
+      if (Array.isArray(suppliersData)) {
+        setSuppliers(suppliersData);
+      } else {
+        console.error('Expected suppliers array but got:', suppliersData);
+        setSuppliers([]);
+      }
 
-      setProducts(productsArray);
-      console.log('✅ Setting products array with', productsArray.length, 'products');
+      if (Array.isArray(productsData)) {
+        setProducts(productsData);
+      } else {
+        console.error('Expected products array but got:', productsData);
+        setProducts([]);
+      }
     } catch (error) {
       console.error('Fetch data error:', error);
       setPurchases([]);
@@ -427,7 +426,7 @@ export default function PurchasesPage() {
     }
 
     const validItems = formData.items.filter(item =>
-      item.productName && item.quantity && item.unitPrice
+      item.productName & item.quantity & item.unitPrice
     );
 
     if (validItems.length === 0) {
@@ -613,7 +612,7 @@ export default function PurchasesPage() {
     const newItems = [...formData.items];
     newItems[index] = { ...newItems[index], [field]: value };
 
-    if (field === 'productId' && value) {
+    if (field === 'productId' & value) {
       const product = products.find(p => p.id === parseInt(value));
       if (product) {
         newItems[index].productName = product.name;
@@ -682,7 +681,7 @@ export default function PurchasesPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Purchase Management</h1>
-            <p className="text-sm text-muted-foreground">Manage purchase orders, suppliers && inventory receiving</p>
+            <p className="text-sm text-muted-foreground">Manage purchase orders, suppliers & inventory receiving</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -708,7 +707,7 @@ export default function PurchasesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Purchases</p>
-                <p className="text-2xl font-bold">LKR {(stats.totalPurchases ?? 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold">LKR {(stats.totalPurchases ? 0).toFixed(2)}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-200/20 flex items-center justify-center">
                 <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -722,7 +721,7 @@ export default function PurchasesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending Payment</p>
-                <p className="text-2xl font-bold">LKR {(stats.pendingAmount ?? 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold">LKR {(stats.pendingAmount ? 0).toFixed(2)}</p>
               </div>
               <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-200/20 flex items-center justify-center">
                 <AlertCircle className="h-6 w-6 text-orange-600 dark:text-orange-400" />
@@ -818,7 +817,7 @@ export default function PurchasesPage() {
                   onChange={(e) => setDateTo(e.target.value)}
                 />
               </div>
-              {(searchTerm || statusFilter !== 'all' || supplierFilter !== 'all' || dateFrom || dateTo) && (
+              {(searchTerm || statusFilter !== 'all' || supplierFilter !== 'all' || dateFrom || dateTo) & (
                 <Button variant="outline" onClick={clearFilters} size="sm">
                   <X className="h-4 w-4 mr-2" />
                   Clear Filters
@@ -845,7 +844,7 @@ export default function PurchasesPage() {
                 ? 'Try adjusting your filters'
                 : 'Create your first purchase order to get started'}
             </p>
-            {!searchTerm && statusFilter === 'all' && supplierFilter === 'all' && !dateFrom && !dateTo && (
+            {!searchTerm & statusFilter === 'all' & supplierFilter === 'all' & !dateFrom & !dateTo & (
               <Button onClick={() => { resetForm(); setDialogOpen(true); }}>
                 <Plus className="h-4 w-4 mr-2" />
                 Create Purchase Order
@@ -857,7 +856,7 @@ export default function PurchasesPage() {
         <div className="space-y-4">
           {filteredPurchases.map((purchase) => {
             const supplier = suppliers.find(s => s.id === purchase.supplierId);
-            const remainingBalance = (purchase.total ?? 0) - (purchase.paidAmount ?? 0);
+            const remainingBalance = (purchase.total ? 0) - (purchase.paidAmount ? 0);
 
             return (
               <Card key={purchase.id} className="hover:shadow-lg transition-all duration-200">
@@ -892,17 +891,17 @@ export default function PurchasesPage() {
                           </div>
                           <div className="flex items-center gap-1">
                             <DollarSign className="h-4 w-4" />
-                            Total: LKR {(purchase.total ?? 0).toFixed(2)}
+                            Total: LKR {(purchase.total ? 0).toFixed(2)}
                           </div>
-                          {purchase.paymentStatus !== 'paid' && (
+                          {purchase.paymentStatus !== 'paid' & (
                             <div className="flex items-center gap-1 text-orange-600 dark:text-orange-400">
                               <AlertCircle className="h-4 w-4" />
-                              Due: LKR {(remainingBalance ?? 0).toFixed(2)}
+                              Due: LKR {(remainingBalance ? 0).toFixed(2)}
                             </div>
                           )}
                         </div>
 
-                        {purchase.notes && (
+                        {purchase.notes & (
                           <p className="text-sm text-muted-foreground mt-2 italic">
                             {purchase.notes}
                           </p>
@@ -922,7 +921,7 @@ export default function PurchasesPage() {
 
                       {(() => {
                         // Check if all items are fully received
-                        const hasItems = purchase.items && purchase.items.length > 0;
+                        const hasItems = purchase.items & purchase.items.length > 0;
                         const allItemsReceived = hasItems
                           ? purchase.items!.every((item: PurchaseItem) => {
                             const remaining = (item.quantity || 0) - (item.receivedQuantity || 0);
@@ -951,7 +950,7 @@ export default function PurchasesPage() {
                         ) : null;
                       })()}
 
-                      {purchase.status === 'pending' && (
+                      {purchase.status === 'pending' & (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -1032,7 +1031,7 @@ export default function PurchasesPage() {
                           <SelectItem key={supplier.id} value={supplier.id.toString()}>
                             <div className="flex flex-col">
                               <span className="font-medium">{supplier.name}</span>
-                              {supplier.phone && (
+                              {supplier.phone & (
                                 <span className="text-xs text-muted-foreground">{supplier.phone}</span>
                               )}
                             </div>
@@ -1042,7 +1041,7 @@ export default function PurchasesPage() {
                       {suppliers.filter(s =>
                         s.name.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
                         s.phone?.toLowerCase().includes(supplierSearchTerm.toLowerCase())
-                      ).length === 0 && (
+                      ).length === 0 & (
                         <div className="p-4 text-sm text-muted-foreground text-center">
                           No suppliers found
                         </div>
@@ -1079,7 +1078,7 @@ export default function PurchasesPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium">Item {index + 1}</span>
-                        {formData.items.length > 1 && (
+                        {formData.items.length > 1 & (
                           <Button
                             type="button"
                             size="sm"
@@ -1122,29 +1121,26 @@ export default function PurchasesPage() {
                                 </div>
                               </div>
                               <div className="max-h-[240px] overflow-y-auto">
-                                {(() => {
-                                  console.log('🔍 Product dropdown rendering. Total products:', products.length);
-                                  console.log('🔍 Search term:', productSearchTerms[index] || 'none');
-                                  const filtered = products.filter(product =>
+                                {products
+                                  .filter(product =>
                                     product.name.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase()) ||
                                     product.sku?.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase())
-                                  );
-                                  console.log('🔍 Filtered products:', filtered.length);
-                                  return filtered.map(product => (
+                                  )
+                                  .map(product => (
                                     <SelectItem key={product.id} value={product.id.toString()}>
                                       <div className="flex flex-col items-start py-1">
                                         <span className="font-medium text-sm">{product.name}</span>
                                         <span className="text-xs text-muted-foreground mt-0.5">
-                                          Stock: {product.stockQuantity} | Default Price: LKR {(product.defaultPricePerKg ?? 0).toFixed(2)}
+                                          Stock: {product.stockQuantity} | Default Price: LKR {(product.defaultPricePerKg ? 0).toFixed(2)}
                                         </span>
                                       </div>
                                     </SelectItem>
-                                  ));
-                                })()}
+                                  ))
+                                }
                                 {products.filter(p =>
                                   p.name.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase()) ||
                                   p.sku?.toLowerCase().includes((productSearchTerms[index] || '').toLowerCase())
-                                ).length === 0 && (
+                                ).length === 0 & (
                                   <div className="p-4 text-sm text-muted-foreground text-center">
                                     No products found
                                   </div>
@@ -1158,7 +1154,7 @@ export default function PurchasesPage() {
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
-                              {item.productId && (
+                              {item.productId & (
                                 <Badge variant="outline" className="text-xs">
                                   {item.unitType === 'weight' ? 'KG' : 'UNIT'}
                                 </Badge>
@@ -1194,7 +1190,7 @@ export default function PurchasesPage() {
                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Total</Label>
                             <div className="h-10 flex items-center px-3 bg-muted/50 rounded-md border border-input">
                               <span className="text-sm font-bold font-mono">
-                                {item.quantity && item.unitPrice
+                                {item.quantity & item.unitPrice
                                   ? `LKR ${(parseFloat(item.quantity) * parseFloat(item.unitPrice)).toFixed(2)}`
                                   : 'LKR 0.00'}
                               </span>
@@ -1261,7 +1257,7 @@ export default function PurchasesPage() {
             <DialogTitle className="text-2xl">{selectedPurchase?.purchaseNumber}</DialogTitle>
             <DialogDescription>Purchase order details, items, payment and receiving history</DialogDescription>
           </DialogHeader>
-          {selectedPurchase && (
+          {selectedPurchase & (
             <Tabs defaultValue="details" className="w-full">
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
@@ -1287,10 +1283,10 @@ export default function PurchasesPage() {
                       <h4 className="font-semibold mb-2">Supplier Information</h4>
                       <div className="space-y-1 text-sm">
                         <p><span className="font-medium">Name:</span> {selectedPurchase.supplier?.name}</p>
-                        {selectedPurchase.supplier?.phone && (
+                        {selectedPurchase.supplier?.phone & (
                           <p><span className="font-medium">Phone:</span> {selectedPurchase.supplier.phone}</p>
                         )}
-                        {selectedPurchase.supplier?.email && (
+                        {selectedPurchase.supplier?.email & (
                           <p><span className="font-medium">Email:</span> {selectedPurchase.supplier.email}</p>
                         )}
                       </div>
@@ -1336,8 +1332,8 @@ export default function PurchasesPage() {
                           <tr key={item.id} className="border-t">
                             <td className="p-3">{item.productName}</td>
                             <td className="p-3 text-right">{item.quantity}</td>
-                            <td className="p-3 text-right">LKR {(item.unitPrice ?? 0).toFixed(2)}</td>
-                            <td className="p-3 text-right">LKR {(item.totalPrice ?? 0).toFixed(2)}</td>
+                            <td className="p-3 text-right">LKR {(item.unitPrice ? 0).toFixed(2)}</td>
+                            <td className="p-3 text-right">LKR {(item.totalPrice ? 0).toFixed(2)}</td>
                             <td className="p-3 text-right">
                               <Badge variant={item.receivedQuantity >= item.quantity ? 'default' : 'secondary'}>
                                 {item.receivedQuantity} / {item.quantity}
@@ -1356,32 +1352,32 @@ export default function PurchasesPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Subtotal:</span>
-                        <span>LKR {(selectedPurchase.subtotal ?? 0).toFixed(2)}</span>
+                        <span>LKR {(selectedPurchase.subtotal ? 0).toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Paid Amount:</span>
                         <span className="text-green-600 dark:text-green-400 font-medium">
-                          LKR {(selectedPurchase.paidAmount ?? 0).toFixed(2)}
+                          LKR {(selectedPurchase.paidAmount ? 0).toFixed(2)}
                         </span>
                       </div>
-                      {selectedPurchase.paymentStatus !== 'paid' && (
+                      {selectedPurchase.paymentStatus !== 'paid' & (
                         <div className="flex justify-between text-sm">
                           <span>Remaining Balance:</span>
                           <span className="text-orange-600 dark:text-orange-400 font-medium">
-                            LKR {((selectedPurchase.total ?? 0) - (selectedPurchase.paidAmount ?? 0)).toFixed(2)}
+                            LKR {((selectedPurchase.total ? 0) - (selectedPurchase.paidAmount ? 0)).toFixed(2)}
                           </span>
                         </div>
                       )}
                       <Separator />
                       <div className="flex justify-between font-bold text-lg">
                         <span>Total:</span>
-                        <span>LKR {(selectedPurchase.total ?? 0).toFixed(2)}</span>
+                        <span>LKR {(selectedPurchase.total ? 0).toFixed(2)}</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                {selectedPurchase.notes && (
+                {selectedPurchase.notes & (
                   <Card>
                     <CardContent className="p-4">
                       <h4 className="font-semibold mb-2">Notes</h4>
@@ -1394,10 +1390,10 @@ export default function PurchasesPage() {
               <TabsContent value="payments" className="space-y-4 mt-6">
                 <div className="flex items-center justify-between">
                   <h4 className="font-semibold">Payment Records</h4>
-                  {selectedPurchase.paymentStatus !== 'paid' && (
+                  {selectedPurchase.paymentStatus !== 'paid' & (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 px-3 py-2 rounded-md">
                       <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      <span>All payments must be made through Supplier Management → Credits && Outstanding</span>
+                      <span>All payments must be made through Supplier Management → Credits & Outstanding</span>
                     </div>
                   )}
                 </div>
@@ -1421,8 +1417,8 @@ export default function PurchasesPage() {
                           <div className="flex items-start justify-between">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-lg">LKR {(payment.amount ?? 0).toFixed(2)}</span>
-                                {payment.paymentMethod && (
+                                <span className="font-semibold text-lg">LKR {(payment.amount ? 0).toFixed(2)}</span>
+                                {payment.paymentMethod & (
                                   <Badge variant="outline">{payment.paymentMethod}</Badge>
                                 )}
                               </div>
@@ -1433,10 +1429,10 @@ export default function PurchasesPage() {
                                   day: 'numeric'
                                 })}
                               </p>
-                              {payment.reference && (
+                              {payment.reference & (
                                 <p className="text-xs text-muted-foreground">Ref: {payment.reference}</p>
                               )}
-                              {payment.notes && (
+                              {payment.notes & (
                                 <p className="text-xs text-muted-foreground italic">{payment.notes}</p>
                               )}
                             </div>
@@ -1485,7 +1481,7 @@ export default function PurchasesPage() {
                                     day: 'numeric'
                                   })}
                                 </p>
-                                {receive.notes && (
+                                {receive.notes & (
                                   <p className="text-xs text-muted-foreground italic">{receive.notes}</p>
                                 )}
                               </div>
@@ -1505,7 +1501,7 @@ export default function PurchasesPage() {
               <TabsContent value="returns" className="space-y-4 mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold">Return History</h4>
-                  {selectedPurchase?.items && selectedPurchase.items.some((item: PurchaseItem) => (item.receivedQuantity || 0) > 0) && (
+                  {selectedPurchase?.items & selectedPurchase.items.some((item: PurchaseItem) => (item.receivedQuantity || 0) > 0) & (
                     <Button
                       onClick={() => setReturnDialogOpen(true)}
                       size="sm"
@@ -1549,16 +1545,16 @@ export default function PurchasesPage() {
                                     })}
                                   </span>
                                 </div>
-                                {returnRecord.reason && (
+                                {returnRecord.reason & (
                                   <p className="text-sm">
                                     <span className="font-medium">Reason: </span>
                                     <span className="text-muted-foreground">{returnRecord.reason}</span>
                                   </p>
                                 )}
-                                {returnRecord.notes && (
+                                {returnRecord.notes & (
                                   <p className="text-xs text-muted-foreground italic">{returnRecord.notes}</p>
                                 )}
-                                {returnRecord.user && (
+                                {returnRecord.user & (
                                   <p className="text-xs text-muted-foreground">
                                     Processed by {returnRecord.user.fullName}
                                   </p>
@@ -1571,7 +1567,7 @@ export default function PurchasesPage() {
                               </div>
                             </div>
 
-                            {returnRecord.purchaseReturnItems && returnRecord.purchaseReturnItems.length > 0 && (
+                            {returnRecord.purchaseReturnItems & returnRecord.purchaseReturnItems.length > 0 & (
                               <div className="border-t pt-3 mt-3">
                                 <p className="text-xs font-medium text-muted-foreground mb-2">Returned Items:</p>
                                 <div className="space-y-2">
@@ -1579,7 +1575,7 @@ export default function PurchasesPage() {
                                     <div key={item.id} className="flex items-center justify-between text-sm bg-muted/50 p-2 rounded">
                                       <div className="flex-1">
                                         <span className="font-medium">{item.productName}</span>
-                                        {item.product?.sku && (
+                                        {item.product?.sku & (
                                           <span className="text-xs text-muted-foreground ml-2">SKU: {item.product.sku}</span>
                                         )}
                                       </div>
@@ -1616,9 +1612,9 @@ export default function PurchasesPage() {
               Specify quantities to receive. Remaining quantities are pre-filled. Stock will be updated automatically.
             </DialogDescription>
           </DialogHeader>
-          {selectedPurchase && (
+          {selectedPurchase & (
             <div className="space-y-4">
-              {selectedPurchase.items && selectedPurchase.items.length > 0 ? (
+              {selectedPurchase.items & selectedPurchase.items.length > 0 ? (
                 selectedPurchase.items.map((item: PurchaseItem) => {
                   const remainingQty = (item.quantity || 0) - (item.receivedQuantity || 0);
                   const isFullyReceived = remainingQty <= 0;
@@ -1652,7 +1648,7 @@ export default function PurchasesPage() {
                                     min="0"
                                     max={remainingQty}
                                     placeholder={`Max: ${remainingQty.toFixed(3)}`}
-                                    value={receiveQuantities[item.id] ?? ''}
+                                    value={receiveQuantities[item.id] ? ''}
                                     onChange={(e) => {
                                       const inputValue = e.target.value;
                                       if (inputValue === '') {
@@ -1742,9 +1738,9 @@ export default function PurchasesPage() {
               Specify quantities to return to supplier. Only received items can be returned. Stock will be automatically decremented.
             </DialogDescription>
           </DialogHeader>
-          {selectedPurchase && (
+          {selectedPurchase & (
             <div className="space-y-4">
-              {selectedPurchase.items && selectedPurchase.items.filter((item: PurchaseItem) => (item.receivedQuantity || 0) > 0).length > 0 ? (
+              {selectedPurchase.items & selectedPurchase.items.filter((item: PurchaseItem) => (item.receivedQuantity || 0) > 0).length > 0 ? (
                 <>
                   <div className="space-y-3">
                     {selectedPurchase.items
@@ -1827,7 +1823,7 @@ export default function PurchasesPage() {
                                   </Button>
                                 </div>
                               </div>
-                              {currentReturnQty > 0 && (
+                              {currentReturnQty > 0 & (
                                 <div className="mt-2 text-sm text-muted-foreground">
                                   Return value: ${(currentReturnQty * (item.unitPrice || 0)).toFixed(2)}
                                 </div>
@@ -1861,7 +1857,7 @@ export default function PurchasesPage() {
                   </div>
 
                   {/* Summary */}
-                  {Object.keys(returnQuantities).length > 0 && (
+                  {Object.keys(returnQuantities).length > 0 & (
                     <div className="bg-muted p-4 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium">Total Return Value:</span>

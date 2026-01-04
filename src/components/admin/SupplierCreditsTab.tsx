@@ -63,7 +63,7 @@ export default function SupplierCreditsTab({
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        setCredits(data);
+        setCredits(Array.isArray(data) ? data : []);
       } else {
         console.error('Invalid credits data:', data);
         setCredits([]);
@@ -139,7 +139,7 @@ export default function SupplierCreditsTab({
     }
   };
 
-  const getTransactionBadge = (type: string, amount: number) => {
+  const getTransactionBadge = (type: string, amount: number, description: string | null) => {
     // Color based on amount impact
     if (amount > 0) {
       // Adding to outstanding (we owe more)
@@ -149,7 +149,18 @@ export default function SupplierCreditsTab({
         </Badge>
       );
     } else {
-      // Payment made (we owe less)
+      // Check if it's a return transaction
+      const isReturn = description?.toLowerCase().includes('return') || false;
+
+      if (isReturn) {
+        return (
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+            Return Processed
+          </Badge>
+        );
+      }
+
+      // Regular payment
       return (
         <Badge className="bg-green-100 text-green-800 border-green-200">
           Payment Made
@@ -253,7 +264,7 @@ export default function SupplierCreditsTab({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          {getTransactionBadge(credit.transactionType, credit.amount)}
+                          {getTransactionBadge(credit.transactionType, credit.amount, credit.description)}
                           <span className={`text-xl font-bold ${credit.amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
                             {credit.amount > 0 ? '+' : ''}${Math.abs(credit.amount).toFixed(2)}
                           </span>
@@ -336,6 +347,7 @@ export default function SupplierCreditsTab({
         onOpenChange={setDialogOpen}
         supplierId={supplierId}
         supplierName={supplierName}
+        currentBalance={currentBalance}
         onSuccess={handleCreditAdded}
       />
 

@@ -285,6 +285,83 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Batch Tracking API
+  async getBatches(params?: {
+    productId?: number;
+    supplierId?: number;
+    status?: 'active' | 'depleted' | 'all';
+    limit?: number;
+    offset?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.productId) queryParams.append('productId', params.productId.toString());
+    if (params?.supplierId) queryParams.append('supplierId', params.supplierId.toString());
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+
+    return this.get(`/api/batches?${queryParams.toString()}`);
+  }
+
+  async getBatchById(id: number) {
+    return this.get(`/api/batches/${id}`);
+  }
+
+  async getProductBatches(productId: number) {
+    return this.get(`/api/batches/product/${productId}`);
+  }
+
+  async getBatchCostAnalysis(productId: number) {
+    return this.get(`/api/batches/product/${productId}/analysis`);
+  }
+
+  async getBatchProfitReport(params?: {
+    startDate?: string;
+    endDate?: string;
+    productId?: number;
+    limit?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.productId) queryParams.append('productId', params.productId.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    return this.get(`/api/batches/reports/profit?${queryParams.toString()}`);
+  }
+
+  async getBatchUsageInOrders(batchId: number, params?: {
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    queryParams.append('batchId', batchId.toString());
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    return this.get(`/api/batches/reports/usage?${queryParams.toString()}`);
+  }
+
+  async getOrderBatchBreakdown(orderId: number) {
+    return this.get(`/api/batches/reports/order/${orderId}`);
+  }
+
+  // Supplier API
+  async getSuppliers(params?: {
+    isActive?: boolean;
+    limit?: number;
+    offset?: number;
+  }) {
+    const queryParams = new URLSearchParams();
+    if (params?.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.offset) queryParams.append('offset', params.offset.toString());
+
+    return this.get(`/api/suppliers?${queryParams.toString()}`);
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);
@@ -298,6 +375,17 @@ export const api = {
   getOrders: apiClient.getOrders.bind(apiClient),
   createOrder: apiClient.createOrder.bind(apiClient),
   getProducts: apiClient.getProducts.bind(apiClient),
+  // Batch API
+  getBatches: apiClient.getBatches.bind(apiClient),
+  getBatchById: apiClient.getBatchById.bind(apiClient),
+  getProductBatches: apiClient.getProductBatches.bind(apiClient),
+  getBatchCostAnalysis: apiClient.getBatchCostAnalysis.bind(apiClient),
+  getBatchProfitReport: apiClient.getBatchProfitReport.bind(apiClient),
+  getBatchUsageInOrders: apiClient.getBatchUsageInOrders.bind(apiClient),
+  getOrderBatchBreakdown: apiClient.getOrderBatchBreakdown.bind(apiClient),
+  // Supplier API
+  getSuppliers: apiClient.getSuppliers.bind(apiClient),
+  // Generic methods
   get: apiClient.get.bind(apiClient),
   post: apiClient.post.bind(apiClient),
   put: apiClient.put.bind(apiClient),

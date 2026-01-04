@@ -92,7 +92,7 @@ function ItemMedia({
   className,
   variant = "default",
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof itemMediaVariants>) {
+}: React.ComponentProps<"div"> && VariantProps<typeof itemMediaVariants>) {
   return (
     <div
       data-slot="item-media"

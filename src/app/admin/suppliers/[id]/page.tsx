@@ -37,6 +37,7 @@ export default function SupplierDetailPage() {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const [refreshKey, setRefreshKey] = useState(0); // Key to trigger tab refreshes
 
   useEffect(() => {
     if (supplierId) {
@@ -66,6 +67,7 @@ export default function SupplierDetailPage() {
 
   const handleRefresh = () => {
     fetchSupplier();
+    setRefreshKey(prev => prev + 1); // Increment key to trigger tab refreshes
   };
 
   if (loading) {
@@ -231,7 +233,7 @@ export default function SupplierDetailPage() {
         <TabsList className="mb-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="purchases">Purchase Orders</TabsTrigger>
-          <TabsTrigger value="credits">Credits & Outstanding</TabsTrigger>
+          <TabsTrigger value="credits">Credits && Outstanding</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -259,7 +261,7 @@ export default function SupplierDetailPage() {
         </TabsContent>
 
         <TabsContent value="purchases">
-          <SupplierPurchasesTab supplierId={supplierId} />
+          <SupplierPurchasesTab supplierId={supplierId} refreshTrigger={refreshKey} />
         </TabsContent>
 
         <TabsContent value="credits">

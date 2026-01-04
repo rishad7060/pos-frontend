@@ -9,11 +9,18 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Search, Plus, Building2, Phone, Mail, MapPin, DollarSign, Edit2, Trash2, Eye } from 'lucide-react';
+import { ArrowLeft, Search, Plus, Building2, Phone, Mail, MapPin, DollarSign, Edit2, Trash2, Eye, Filter, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
 import AddSupplierCreditDialog from '@/components/admin/AddSupplierCreditDialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Supplier {
   id: number;
@@ -39,6 +46,13 @@ export default function SuppliersPage() {
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
   const [creditSupplier, setCreditSupplier] = useState<{ id: number; name: string } | null>(null);
+
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentTermsFilter, setPaymentTermsFilter] = useState<string>('all');
+  const [balanceFilter, setBalanceFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('name');
+
   const [formData, setFormData] = useState({
     name: '',
     contactPerson: '',
@@ -69,12 +83,12 @@ export default function SuppliersPage() {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await fetchWithAuth('/api/suppliers?limit=100');
+      const response = await fetchWithAuth('/api/suppliers?');
       const data = await response.json();
 
       // Ensure data is always an array
       if (Array.isArray(data)) {
-        setSuppliers(data);
+        setSuppliers(Array.isArray(data) ? data : []);
       } else {
         console.error('Invalid suppliers data:', data);
         setSuppliers([]);
@@ -188,11 +202,64 @@ export default function SuppliersPage() {
     setEditingSupplier(null);
   };
 
-  const filteredSuppliers = (Array.isArray(suppliers) ? suppliers : []).filter(s =>
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.contactPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.phone?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Clear all filters function
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPaymentTermsFilter('all');
+    setBalanceFilter('all');
+    setSortBy('name');
+  };
+
+  // Check if any filter is active
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' ||
+    paymentTermsFilter !== 'all' || balanceFilter !== 'all' || sortBy !== 'name';
+
+  // Get unique payment terms from suppliers
+  const uniquePaymentTerms = Array.from(
+    new Set(
+      (Array.isArray(suppliers) ? suppliers : [])
+        .map(s => s.paymentTerms)
+        .filter(Boolean)
+    )
+  ).sort();
+
+  const filteredSuppliers = (Array.isArray(suppliers) ? suppliers : [])
+    .filter(s => {
+      // Search filter
+      const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.contactPerson?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.phone?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Status filter
+      const matchesStatus = statusFilter === 'all' ||
+        (statusFilter === 'active' && s.isActive) ||
+        (statusFilter === 'inactive' && !s.isActive);
+
+      // Payment terms filter
+      const matchesPaymentTerms = paymentTermsFilter === 'all' ||
+        s.paymentTerms === paymentTermsFilter;
+
+      // Balance filter
+      const matchesBalance = balanceFilter === 'all' ||
+        (balanceFilter === 'outstanding' && s.outstandingBalance > 0) ||
+        (balanceFilter === 'noOutstanding' && s.outstandingBalance <= 0);
+
+      return matchesSearch && matchesStatus && matchesPaymentTerms && matchesBalance;
+    })
+    .sort((a, b) => {
+      // Sorting logic
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'totalPurchases':
+          return b.totalPurchases - a.totalPurchases;
+        case 'outstandingBalance':
+          return b.outstandingBalance - a.outstandingBalance;
+        default:
+          return 0;
+      }
+    });
 
   return (
     <div className="space-y-6">
@@ -214,14 +281,126 @@ export default function SuppliersPage() {
 
       <Card className="mb-6">
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search suppliers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search suppliers by name, contact person, or phone..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Filter className="h-4 w-4" />
+                <span className="font-medium">Filters:</span>
+              </div>
+
+              {/* Status Filter */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Payment Terms Filter */}
+              <Select value={paymentTermsFilter} onValueChange={setPaymentTermsFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Payment Terms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Payment Terms</SelectItem>
+                  {uniquePaymentTerms.map((term) => (
+                    <SelectItem key={term} value={term as string}>
+                      {term}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Balance Filter */}
+              <Select value={balanceFilter} onValueChange={setBalanceFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Balance Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Balances</SelectItem>
+                  <SelectItem value="outstanding">Has Outstanding</SelectItem>
+                  <SelectItem value="noOutstanding">No Outstanding</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Sort By */}
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Name (A-Z)</SelectItem>
+                  <SelectItem value="totalPurchases">Total Purchases</SelectItem>
+                  <SelectItem value="outstandingBalance">Outstanding Balance</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="w-full sm:w-auto"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            {/* Active Filters Display */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap gap-2">
+                {searchTerm && (
+                  <Badge variant="secondary" className="text-xs">
+                    Search: {searchTerm}
+                  </Badge>
+                )}
+                {statusFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Status: {statusFilter === 'active' ? 'Active' : 'Inactive'}
+                  </Badge>
+                )}
+                {paymentTermsFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Payment: {paymentTermsFilter}
+                  </Badge>
+                )}
+                {balanceFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Balance: {balanceFilter === 'outstanding' ? 'Has Outstanding' : 'No Outstanding'}
+                  </Badge>
+                )}
+                {sortBy !== 'name' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Sort: {sortBy === 'totalPurchases' ? 'Total Purchases' : 'Outstanding Balance'}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Results Count */}
+            <div className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{filteredSuppliers.length}</span> of{' '}
+              <span className="font-semibold text-foreground">{suppliers.length}</span> suppliers
+            </div>
           </div>
         </CardContent>
       </Card>

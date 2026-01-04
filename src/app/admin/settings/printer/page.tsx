@@ -261,7 +261,7 @@ export default function PrinterSettingsPage() {
 
       const printerSettings = {
         printerType: formData.printerType,
-        paperWidth: formData.paperSize === '57mm' ? 58 : 80,
+        paperWidth: formData.paperSize === 'A5' ? 148 : formData.paperSize === '57mm' ? 58 : 80,
         autoPrint: formData.autoPrint,
         printCopies: 1, // Only print 1 copy for test
         receiptHeader: formData.receiptHeader,
@@ -424,8 +424,9 @@ export default function PrinterSettingsPage() {
                         <SelectValue placeholder="Select paper size" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="57mm">57mm (Standard)</SelectItem>
-                        <SelectItem value="80mm">80mm (Standard)</SelectItem>
+                        <SelectItem value="57mm">57mm (Thermal)</SelectItem>
+                        <SelectItem value="80mm">80mm (Thermal)</SelectItem>
+                        <SelectItem value="A5">A5 (Normal Printer - 148mm x 210mm)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -542,7 +543,7 @@ export default function PrinterSettingsPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Logo & Barcode Settings</CardTitle>
+                <CardTitle>Logo && Barcode Settings</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

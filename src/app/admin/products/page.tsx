@@ -9,19 +9,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { getAuthUser, logout } from '@/lib/auth';
+import { Separator } from '@/components/ui/separator';
+import { getAuthUser } from '@/lib/auth';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
-import { ArrowLeft, Plus, Trash2, Edit, LogOut, User, Package, AlertTriangle, Search, Grid3x3, List, Download, Upload, TrendingUp, TrendingDown, Bell, BellOff, Image as ImageIcon, Tag, Folder, ShieldAlert } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import {
+  Plus, Trash2, Edit, Package, Search, Grid3x3, List, Download,
+  TrendingUp, DollarSign, AlertTriangle, PackageX, Eye, Archive,
+  Filter, X, RefreshCw, Layers
+} from 'lucide-react';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  DialogDescription, DialogFooter
+} from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
-import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
-import { ProductListSkeleton } from '@/components/skeletons/ProductCardSkeleton';
 import { toast } from 'sonner';
+import { PaginationWarning } from '@/components/ui/PaginationWarning';
 
 interface Product {
   id: number;
@@ -37,12 +41,36 @@ interface Product {
   reorderLevel: number;
   unitType: string;
   costPrice: number | null;
-  alertsEnabled: boolean;
-  alertEmail: string | null;
-  minStockLevel: number | null;
-  maxStockLevel: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+interface PaginationMeta {
+  total: number;
+  returned: number;
+  limit: number;
+  hasMore: boolean;
+  limitReached: boolean;
+  warningMessage?: string;
+}
+
+interface ProductStats {
+  totalProducts: number;
+  totalValue: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+}
+
+interface StockBatch {
+  id: number;
+  batchNumber: string;
+  quantityReceived: number;
+  quantityRemaining: number;
+  costPrice: number;
+  receivedDate: string;
+  expiryDate: string | null;
+  supplierName: string | null;
+  notes: string | null;
 }
 
 interface Category {
@@ -55,88 +83,114 @@ export default function ProductsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterStock, setFilterStock] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
 
-  // Category management state
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [categoryFormName, setCategoryFormName] = useState('');
-  const [categoryFormDescription, setCategoryFormDescription] = useState('');
-  const [categorySubmitting, setCategorySubmitting] = useState(false);
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStockStatus, setSelectedStockStatus] = useState('');
+  const [selectedActiveStatus, setSelectedActiveStatus] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
 
-  // Form state
+  // View mode
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+
+  // Statistics
+  const [stats, setStats] = useState<ProductStats>({
+    totalProducts: 0,
+    totalValue: 0,
+    lowStockCount: 0,
+    outOfStockCount: 0
+  });
+
+  // Batch details
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productBatches, setProductBatches] = useState<StockBatch[]>([]);
+  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
+  const [loadingBatches, setLoadingBatches] = useState(false);
+
+  // Product form
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
-  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [stockAdjustProduct, setStockAdjustProduct] = useState<Product | null>(null);
-  const [alertConfigProduct, setAlertConfigProduct] = useState<Product | null>(null);
-  const [stockAdjustment, setStockAdjustment] = useState('');
-  const [stockAdjustmentType, setStockAdjustmentType] = useState<'add' | 'subtract' | 'set'>('add');
-  const [stockAdjustmentNotes, setStockAdjustmentNotes] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    defaultPricePerKg: '',
+    costPrice: '',
+    category: '',
+    sku: '',
+    barcode: '',
+    stockQuantity: '',
+    reorderLevel: '10',
+    unitType: 'weight' as 'weight' | 'unit',
+    isActive: true,
+  });
 
-  const [formName, setFormName] = useState('');
-  const [formDescription, setFormDescription] = useState('');
-  const [formPrice, setFormPrice] = useState('');
-  const [formCostPrice, setFormCostPrice] = useState('');
-  const [formCategory, setFormCategory] = useState('');
-  const [formSku, setFormSku] = useState('');
-  const [formBarcode, setFormBarcode] = useState('');
-  const [formStockQuantity, setFormStockQuantity] = useState('');
-  const [formReorderLevel, setFormReorderLevel] = useState('10');
-  const [formUnitType, setFormUnitType] = useState<'weight' | 'unit'>('weight');
-  const [formIsActive, setFormIsActive] = useState(true);
-  const [formImageUrl, setFormImageUrl] = useState('');
-  const [formAlertsEnabled, setFormAlertsEnabled] = useState(true);
-  const [formAlertEmail, setFormAlertEmail] = useState('');
-  const [formMinStockLevel, setFormMinStockLevel] = useState('');
-  const [formMaxStockLevel, setFormMaxStockLevel] = useState('');
-  const [formSubmitting, setFormSubmitting] = useState(false);
+  // Category creation
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [newCategoryData, setNewCategoryData] = useState({
+    name: '',
+    description: ''
+  });
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
-  // Confirmation dialog states
-  const [deleteCategoryConfirmOpen, setDeleteCategoryConfirmOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<{ id: number; name: string } | null>(null);
-  const [deleteProductConfirmOpen, setDeleteProductConfirmOpen] = useState(false);
-  const [forceDeleteConfirmOpen, setForceDeleteConfirmOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<{ id: number; name: string } | null>(null);
-  const [deleteErrorDetails, setDeleteErrorDetails] = useState<any>(null);
-  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  // Delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    setUser(getAuthUser());
-    fetchProducts();
-    fetchCategories();
+    const currentUser = getAuthUser();
+    setUser(currentUser);
+    if (currentUser) {
+      fetchProducts();
+      fetchStats();
+      fetchCategories();
+    }
   }, []);
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const response = await fetchWithAuth('/api/products?limit=200');
-      const data = await response.json();
+      const response = await fetchWithAuth('/api/products');
+      if (response.ok) {
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch products');
-      }
+        // Handle new pagination response format
+        let productsArray: Product[] = [];
+        if (data.data && data.pagination) {
+          productsArray = Array.isArray(data.data) ? data.data : [];
+          setProducts(productsArray);
+          setPagination(data.pagination);
+        } else {
+          // Backward compatibility: if response is just an array
+          productsArray = Array.isArray(data) ? data : [];
+          setProducts(productsArray);
+          setPagination(undefined);
+        }
 
-      // Validate that we got an array
-      if (Array.isArray(data)) {
-        setProducts(data);
+        // Calculate total inventory value from cost price × stock quantity
+        const totalInventoryValue = productsArray.reduce((sum, product) => {
+          const costPrice = product.costPrice || 0;
+          const stockQuantity = product.stockQuantity || 0;
+          return sum + (costPrice * stockQuantity);
+        }, 0);
+
+        // Update stats with calculated inventory value
+        setStats(prevStats => ({
+          ...prevStats,
+          totalValue: totalInventoryValue
+        }));
+
+        console.log('📦 Total Inventory Value (Cost Price × Quantity):', totalInventoryValue.toFixed(2));
       } else {
-        console.error('Expected products array but got:', data);
-        setProducts([]);
-        setError('Invalid response format from server');
+        throw new Error('Failed to fetch products');
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch products');
-      setProducts([]);
+      setError(err.message);
+      toast.error('Failed to load products');
     } finally {
       setLoading(false);
     }
@@ -144,1614 +198,1396 @@ export default function ProductsPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetchWithAuth('/api/categories?limit=100');
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch categories');
+      const response = await fetchWithAuth('/api/categories');
+      if (response.ok) {
+        const result = await response.json();
+        // Backend returns paginated response: { data: [], pagination: {} }
+        const data = result.data || result;
+        // Ensure data is an array before setting
+        if (Array.isArray(data)) {
+          setCategories(data);
+        } else {
+          console.error('Expected array but got:', result);
+          setCategories([]);
+        }
       }
-
-      // Validate that we got an array
-      if (Array.isArray(data)) {
-        setCategories(data);
-      } else {
-        console.error('Expected categories array but got:', data);
-        setCategories([]);
-      }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to fetch categories:', err);
       setCategories([]);
     }
   };
 
-  // Category management functions
-  const resetCategoryForm = () => {
-    setCategoryFormName('');
-    setCategoryFormDescription('');
-    setEditingCategory(null);
-  };
-
-  const openEditCategoryDialog = (category: Category) => {
-    setEditingCategory(category);
-    setCategoryFormName(category.name);
-    setCategoryFormDescription(category.description || '');
-    setIsCategoryDialogOpen(true);
-  };
-
-  const handleCategorySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCategorySubmitting(true);
-    setError('');
-    setSuccess('');
-
+  const fetchStats = async () => {
     try {
-      const payload = {
-        name: categoryFormName,
-        description: categoryFormDescription || null,
-      };
-
-      const url = editingCategory
-        ? `/api/categories?id=${editingCategory.id}`
-        : '/api/categories';
-
-      const method = editingCategory ? 'PUT' : 'POST';
-
-      const response = await fetchWithAuth(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `Failed to ${editingCategory ? 'update' : 'create'} category`);
+      const response = await fetchWithAuth('/api/products/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
       }
-
-      setSuccess(`Category ${categoryFormName} ${editingCategory ? 'updated' : 'created'} successfully!`);
-      resetCategoryForm();
-      setIsCategoryDialogOpen(false);
-      fetchCategories();
-    } catch (err: any) {
-      setError(err.message || `Failed to ${editingCategory ? 'update' : 'create'} category`);
-    } finally {
-      setCategorySubmitting(false);
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
     }
   };
 
-  const handleDeleteCategory = async (id: number, name: string) => {
-    setCategoryToDelete({ id, name });
-    setDeleteCategoryConfirmOpen(true);
+  const fetchProductBatches = async (productId: number) => {
+    setLoadingBatches(true);
+    try {
+      const response = await fetchWithAuth(`/api/batches?productId=${productId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProductBatches(data);
+      } else {
+        toast.error('Failed to load batches');
+      }
+    } catch (err) {
+      toast.error('Failed to load batches');
+    } finally {
+      setLoadingBatches(false);
+    }
   };
 
-  const confirmDeleteCategory = async () => {
-    if (!categoryToDelete) return;
+  const handleViewBatches = async (product: Product) => {
+    setSelectedProduct(product);
+    setBatchDialogOpen(true);
+    await fetchProductBatches(product.id);
+  };
+
+  const handleCreateProduct = async () => {
+    try {
+      // Validation
+      if (!formData.name) {
+        toast.error('Product name is required');
+        return;
+      }
+
+      // CRITICAL: Validate cost price if stock is being added
+      const stockQty = parseFloat(formData.stockQuantity || '0');
+      const costPrice = parseFloat(formData.costPrice || '0');
+
+      if (stockQty > 0 && costPrice <= 0) {
+        toast.error('Cost price is required when adding initial stock', {
+          description: 'You cannot add stock without specifying a valid cost price. This is required for accurate inventory costing.'
+        });
+        return;
+      }
+
+      const response = await fetchWithAuth('/api/products', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description || null,
+          defaultPricePerKg: formData.defaultPricePerKg ? parseFloat(formData.defaultPricePerKg) : null,
+          costPrice: costPrice || null,
+          category: formData.category || null,
+          sku: formData.sku || null,
+          barcode: formData.barcode || null,
+          stockQuantity: stockQty,
+          reorderLevel: parseFloat(formData.reorderLevel),
+          unitType: formData.unitType,
+          isActive: formData.isActive,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Product created successfully');
+        setIsDialogOpen(false);
+        resetForm();
+        fetchProducts();
+        fetchStats();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to create product');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create product');
+    }
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editingProduct) return;
 
     try {
-      const response = await fetchWithAuth(`/api/categories?id=${categoryToDelete.id}`, {
+      const response = await fetchWithAuth(`/api/products?id=${editingProduct.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description || null,
+          defaultPricePerKg: formData.defaultPricePerKg ? parseFloat(formData.defaultPricePerKg) : null,
+          category: formData.category || null,
+          sku: formData.sku || null,
+          barcode: formData.barcode || null,
+          reorderLevel: parseFloat(formData.reorderLevel),
+          isActive: formData.isActive,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Product updated successfully');
+        setIsDialogOpen(false);
+        setEditingProduct(null);
+        resetForm();
+        fetchProducts();
+        fetchStats();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to update product');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update product');
+    }
+  };
+
+  const openDeleteDialog = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!productToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetchWithAuth(`/api/products?id=${productToDelete.id}`, {
         method: 'DELETE',
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete category');
+      if (response.ok) {
+        toast.success('Product deleted successfully');
+        setDeleteDialogOpen(false);
+        setProductToDelete(null);
+        fetchProducts();
+        fetchStats();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to delete product');
       }
-
-      setSuccess(`Category ${categoryToDelete.name} deleted successfully!`);
-      fetchCategories();
     } catch (err: any) {
-      setError(err.message || 'Failed to delete category');
+      toast.error(err.message || 'Failed to delete product');
     } finally {
-      setDeleteCategoryConfirmOpen(false);
-      setCategoryToDelete(null);
+      setIsDeleting(false);
     }
   };
 
-  const resetForm = () => {
-    setFormName('');
-    setFormDescription('');
-    setFormPrice('');
-    setFormCostPrice('');
-    setFormCategory('');
-    setFormSku('');
-    setFormBarcode('');
-    setFormStockQuantity('');
-    setFormReorderLevel('10');
-    setFormUnitType('weight');
-    setFormIsActive(true);
-    setFormImageUrl('');
-    setFormAlertsEnabled(true);
-    setFormAlertEmail('');
-    setFormMinStockLevel('');
-    setFormMaxStockLevel('');
+  const generateSKU = () => {
+    // Generate SKU based on category and product name
+    let sku = '';
+
+    // Use category prefix if available
+    if (formData.category) {
+      const categoryPrefix = formData.category
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 3);
+      sku += categoryPrefix;
+    } else {
+      sku += 'PRD'; // Default prefix if no category
+    }
+
+    // Add hyphen
+    sku += '-';
+
+    // Use product name if available
+    if (formData.name.trim()) {
+      const namePrefix = formData.name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 4);
+      sku += namePrefix;
+    } else {
+      sku += 'XXXX';
+    }
+
+    // Add timestamp-based unique suffix
+    const timestamp = Date.now().toString().slice(-4);
+    sku += '-' + timestamp;
+
+    // Update form data
+    setFormData({ ...formData, sku });
+    toast.success('SKU generated successfully');
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryData.name.trim()) {
+      toast.error('Category name is required');
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const response = await fetchWithAuth('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCategoryData.name.trim(),
+          description: newCategoryData.description.trim() || null,
+        }),
+      });
+
+      if (response.ok) {
+        const newCategory = await response.json();
+        toast.success('Category created successfully');
+
+        // Refresh categories list
+        await fetchCategories();
+
+        // Auto-select the newly created category
+        setFormData({ ...formData, category: newCategory.name });
+
+        // Reset and close dialog
+        setNewCategoryData({ name: '', description: '' });
+        setCategoryDialogOpen(false);
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to create category');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create category');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
+  const openCreateDialog = () => {
     setEditingProduct(null);
+    resetForm();
+    setIsDialogOpen(true);
   };
 
   const openEditDialog = (product: Product) => {
     setEditingProduct(product);
-    setFormName(product.name);
-    setFormDescription(product.description || '');
-    setFormPrice(product.defaultPricePerKg?.toString() || '');
-    setFormCostPrice(product.costPrice?.toString() || '');
-    setFormCategory(product.category || '');
-    setFormSku(product.sku || '');
-    setFormBarcode(product.barcode || '');
-    setFormStockQuantity(product.stockQuantity.toString());
-    setFormReorderLevel(product.reorderLevel.toString());
-    setFormUnitType(product.unitType as 'weight' | 'unit');
-    setFormIsActive(product.isActive);
-    setFormImageUrl(product.imageUrl || '');
-    setFormAlertsEnabled(product.alertsEnabled);
-    setFormAlertEmail(product.alertEmail || '');
-    setFormMinStockLevel(product.minStockLevel?.toString() || '');
-    setFormMaxStockLevel(product.maxStockLevel?.toString() || '');
+    setFormData({
+      name: product.name,
+      description: product.description || '',
+      defaultPricePerKg: product.defaultPricePerKg?.toString() || '',
+      costPrice: product.costPrice?.toString() || '',
+      category: product.category || '',
+      sku: product.sku || '',
+      barcode: product.barcode || '',
+      stockQuantity: '', // Can't edit stock directly - must use batch system
+      reorderLevel: product.reorderLevel.toString(),
+      unitType: product.unitType as 'weight' | 'unit',
+      isActive: product.isActive,
+    });
     setIsDialogOpen(true);
   };
 
-  const openStockDialog = (product: Product) => {
-    setStockAdjustProduct(product);
-    setStockAdjustment('');
-    setStockAdjustmentType('add');
-    setStockAdjustmentNotes('');
-    setIsStockDialogOpen(true);
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      defaultPricePerKg: '',
+      costPrice: '',
+      category: '',
+      sku: '',
+      barcode: '',
+      stockQuantity: '',
+      reorderLevel: '10',
+      unitType: 'weight',
+      isActive: true,
+    });
   };
 
-  const openAlertDialog = (product: Product) => {
-    setAlertConfigProduct(product);
-    setFormAlertsEnabled(product.alertsEnabled);
-    setFormAlertEmail(product.alertEmail || '');
-    setFormMinStockLevel(product.minStockLevel?.toString() || '');
-    setFormMaxStockLevel(product.maxStockLevel?.toString() || '');
-    setIsAlertDialogOpen(true);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormSubmitting(true);
-    setError('');
-    setSuccess('');
-
+  const exportToCSV = () => {
     try {
-      const payload = {
-        name: formName,
-        description: formDescription || null,
-        defaultPricePerKg: formPrice ? parseFloat(formPrice) : null,
-        costPrice: formCostPrice ? parseFloat(formCostPrice) : null,
-        category: formCategory || null,
-        sku: formSku || null,
-        barcode: formBarcode || null,
-        stockQuantity: formStockQuantity ?
-          (formUnitType === 'weight' ? parseFloat(formStockQuantity) : parseInt(formStockQuantity)) : 0,
-        reorderLevel: formReorderLevel ?
-          (formUnitType === 'weight' ? parseFloat(formReorderLevel) : parseInt(formReorderLevel)) : 10,
-        unitType: formUnitType,
-        isActive: formIsActive,
-        imageUrl: formImageUrl || null,
-        alertsEnabled: formAlertsEnabled,
-        alertEmail: formAlertEmail || null,
-        minStockLevel: formMinStockLevel ? parseInt(formMinStockLevel) : null,
-        maxStockLevel: formMaxStockLevel ? parseInt(formMaxStockLevel) : null,
-      };
+      const headers = ['Name', 'SKU', 'Barcode', 'Category', 'Stock', 'Unit', 'Cost Price', 'Selling Price', 'Status'];
+      const rows = filteredProducts.map(product => [
+        product.name,
+        product.sku || '',
+        product.barcode || '',
+        product.category || '',
+        product.stockQuantity,
+        product.unitType === 'weight' ? 'KG' : 'Units',
+        product.costPrice?.toFixed(2) || '0.00',
+        product.defaultPricePerKg?.toFixed(2) || '0.00',
+        product.isActive ? 'Active' : 'Inactive'
+      ]);
 
-      const url = editingProduct
-        ? `/api/products?id=${editingProduct.id}`
-        : '/api/products';
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
 
-      const method = editingProduct ? 'PUT' : 'POST';
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `products_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      const response = await fetchWithAuth(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || `Failed to ${editingProduct ? 'update' : 'create'} product`);
-      }
-
-      setSuccess(`Product ${formName} ${editingProduct ? 'updated' : 'created'} successfully!`);
-      resetForm();
-      setIsDialogOpen(false);
-      fetchProducts();
+      toast.success('CSV exported successfully!');
     } catch (err: any) {
-      setError(err.message || `Failed to ${editingProduct ? 'update' : 'create'} product`);
-    } finally {
-      setFormSubmitting(false);
+      toast.error('Failed to export CSV: ' + err.message);
     }
   };
 
-  const handleStockAdjustment = async () => {
-    if (!stockAdjustProduct || !stockAdjustment) return;
+  const getStockStatus = (product: Product) => {
+    if (product.stockQuantity === 0) return 'out';
+    if (product.stockQuantity <= product.reorderLevel) return 'low';
+    return 'ok';
+  };
 
-    setFormSubmitting(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const adjustmentValue = stockAdjustProduct.unitType === 'weight'
-        ? parseFloat(stockAdjustment)
-        : parseInt(stockAdjustment);
-      let newStock = stockAdjustProduct.stockQuantity;
-
-      if (stockAdjustmentType === 'add') {
-        newStock += adjustmentValue;
-      } else if (stockAdjustmentType === 'subtract') {
-        newStock -= adjustmentValue;
-      } else {
-        newStock = adjustmentValue;
-      }
-
-      // Round to appropriate precision
-      newStock = stockAdjustProduct.unitType === 'weight'
-        ? Number(newStock.toFixed(3))
-        : Math.round(newStock);
-
-      if (newStock < 0) {
-        throw new Error('Stock quantity cannot be negative');
-      }
-
-      const response = await fetchWithAuth(`/api/products?id=${stockAdjustProduct.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stockQuantity: newStock }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to adjust stock');
-      }
-
-      setSuccess(`Stock adjusted successfully! New quantity: ${newStock}`);
-      setIsStockDialogOpen(false);
-      fetchProducts();
-    } catch (err: any) {
-      setError(err.message || 'Failed to adjust stock');
-    } finally {
-      setFormSubmitting(false);
+  const getStockBadgeColor = (status: string) => {
+    switch (status) {
+      case 'out':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'low':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      default:
+        return 'bg-green-100 text-green-800 border-green-200';
     }
   };
 
-  const handleAlertConfig = async () => {
-    if (!alertConfigProduct) return;
-
-    setFormSubmitting(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const response = await fetchWithAuth(`/api/products?id=${alertConfigProduct.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          alertsEnabled: formAlertsEnabled,
-          alertEmail: formAlertEmail || null,
-          minStockLevel: formMinStockLevel ? parseInt(formMinStockLevel) : null,
-          maxStockLevel: formMaxStockLevel ? parseInt(formMaxStockLevel) : null,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update alert settings');
-      }
-
-      setSuccess('Alert settings updated successfully!');
-      setIsAlertDialogOpen(false);
-      fetchProducts();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update alert settings');
-    } finally {
-      setFormSubmitting(false);
+  const getStockLabel = (status: string) => {
+    switch (status) {
+      case 'out':
+        return 'Out of Stock';
+      case 'low':
+        return 'Low Stock';
+      default:
+        return 'In Stock';
     }
   };
 
-  const handleDeleteProduct = async (id: number, name: string) => {
-    setProductToDelete({ id, name });
-    setDeleteProductConfirmOpen(true);
-  };
-
-  const confirmDeleteProduct = async (forceDelete: boolean = false) => {
-    if (!productToDelete) return;
-
-    let shouldShowForceDelete = false;
-
-    try {
-      const url = forceDelete
-        ? `/api/products?id=${productToDelete.id}&force=true`
-        : `/api/products?id=${productToDelete.id}`;
-
-      const response = await fetchWithAuth(url, {
-        method: 'DELETE',
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Check if force delete is available
-        if (data.details && data.details.canForceDelete && !forceDelete) {
-          // Save error details and show force delete confirmation dialog
-          setDeleteErrorDetails(data);
-          setDeleteProductConfirmOpen(false);
-          shouldShowForceDelete = true;
-          // Don't show toast, we'll show the force delete dialog instead
-          setTimeout(() => {
-            setForceDeleteConfirmOpen(true);
-          }, 100);
-          return;
-        }
-
-        // Show error toast with details (for non-admin or other errors)
-        if (data.details && data.details.suggestion) {
-          toast.error(data.error, {
-            description: `💡 ${data.details.suggestion}`,
-            duration: 6000,
-          });
-        } else {
-          toast.error(data.error || 'Failed to delete product');
-        }
-
-        // Close dialog for regular errors
-        setDeleteProductConfirmOpen(false);
-        setProductToDelete(null);
-        return;
-      }
-
-      // Show success toast
-      if (forceDelete) {
-        toast.success('Product Force Deleted', {
-          description: `${productToDelete.name} was deleted. Action logged in audit trail.`,
-          icon: '⚠️',
-        });
-      } else {
-        toast.success('Product Deleted', {
-          description: `${productToDelete.name} has been deleted successfully.`,
-        });
-      }
-
-      fetchProducts();
-
-      // Clean up after success
-      setDeleteProductConfirmOpen(false);
-      setForceDeleteConfirmOpen(false);
-      setProductToDelete(null);
-      setDeleteErrorDetails(null);
-    } catch (err: any) {
-      toast.error('Delete Failed', {
-        description: err.message || 'An unexpected error occurred.',
-      });
-
-      // Clean up after error
-      if (!shouldShowForceDelete) {
-        setDeleteProductConfirmOpen(false);
-        setForceDeleteConfirmOpen(false);
-        setProductToDelete(null);
-        setDeleteErrorDetails(null);
-      }
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedProducts.size === 0) return;
-    setBulkDeleteConfirmOpen(true);
-  };
-
-  const confirmBulkDelete = async () => {
-    try {
-      const results = await Promise.allSettled(
-        Array.from(selectedProducts).map(async id => {
-          const response = await fetchWithAuth(`/api/products?id=${id}`, { method: 'DELETE' });
-          const data = await response.json();
-          return { id, success: response.ok, data, response };
-        })
-      );
-
-      const succeeded = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
-
-      if (failed.length === 0) {
-        toast.success('Bulk Delete Complete', {
-          description: `Successfully deleted ${succeeded} product(s).`,
-        });
-        setSelectedProducts(new Set());
-      } else if (succeeded > 0) {
-        // Partial success
-        const firstError = failed[0];
-        const errorMsg = firstError.status === 'fulfilled' ? firstError.value.data.error : 'Unknown error';
-        toast.warning('Partial Success', {
-          description: `${succeeded} deleted, ${failed.length} failed. ${errorMsg}`,
-          duration: 7000,
-        });
-        setSelectedProducts(new Set());
-      } else {
-        // All failed
-        const firstError = failed[0];
-        const errorMsg = firstError.status === 'fulfilled' ? firstError.value.data.error : 'Unknown error';
-        toast.error('Bulk Delete Failed', {
-          description: errorMsg,
-          duration: 5000,
-        });
-      }
-
-      fetchProducts();
-    } catch (err: any) {
-      toast.error('Delete Failed', {
-        description: 'An unexpected error occurred while deleting products.',
-      });
-    } finally {
-      setBulkDeleteConfirmOpen(false);
-    }
-  };
-
-  const toggleProductSelection = (id: number) => {
-    const newSelected = new Set(selectedProducts);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedProducts(newSelected);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedProducts.size === filteredProducts.length) {
-      setSelectedProducts(new Set());
-    } else {
-      setSelectedProducts(new Set(filteredProducts.map(p => p.id)));
-    }
-  };
-
-  const handleExportCSV = () => {
-    const headers = ['Name', 'SKU', 'Barcode', 'Category', 'Price', 'Cost', 'Stock', 'Reorder Level', 'Unit Type', 'Status'];
-    const rows = products.map(p => [
-      p.name,
-      p.sku || '',
-      p.barcode || '',
-      p.category || '',
-      p.defaultPricePerKg || '',
-      p.costPrice || '',
-      p.stockQuantity,
-      p.reorderLevel,
-      p.unitType,
-      p.isActive ? 'Active' : 'Inactive'
-    ]);
-
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `products-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setSuccess('Products exported successfully!');
-  };
-
+  // Filter products
   const filteredProducts = products.filter(product => {
-    const matchesSearch = searchTerm === '' ||
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.barcode?.toLowerCase().includes(searchTerm.toLowerCase());
+    // Search filter
+    const matchesSearch = !searchQuery ||
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCategory = filterCategory === 'all' || product.category === filterCategory;
+    // Category filter
+    const matchesCategory = !selectedCategory || product.category === selectedCategory;
 
-    const matchesStock = filterStock === 'all' ||
-      (filterStock === 'low' && product.stockQuantity <= product.reorderLevel) ||
-      (filterStock === 'out' && product.stockQuantity === 0);
+    // Stock status filter
+    let matchesStockStatus = true;
+    if (selectedStockStatus === 'in-stock') {
+      matchesStockStatus = product.stockQuantity > product.reorderLevel;
+    } else if (selectedStockStatus === 'low-stock') {
+      matchesStockStatus = product.stockQuantity > 0 && product.stockQuantity <= product.reorderLevel;
+    } else if (selectedStockStatus === 'out-of-stock') {
+      matchesStockStatus = product.stockQuantity === 0;
+    }
 
-    return matchesSearch && matchesCategory && matchesStock;
+    // Active status filter
+    let matchesActiveStatus = true;
+    if (selectedActiveStatus === 'active') {
+      matchesActiveStatus = product.isActive;
+    } else if (selectedActiveStatus === 'inactive') {
+      matchesActiveStatus = !product.isActive;
+    }
+
+    return matchesSearch && matchesCategory && matchesStockStatus && matchesActiveStatus;
   });
 
-  const lowStockProducts = products.filter(p => p.stockQuantity <= p.reorderLevel && p.stockQuantity > 0);
-  const outOfStockProducts = products.filter(p => p.stockQuantity === 0);
+  const formatCurrency = (amount: number | null) => {
+    if (amount === null) return 'N/A';
+    return `LKR ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   return (
-    <div className="space-y-6">
+    <AuthGuard>
+      <div className="container mx-auto p-6 space-y-6">
+        {/* Statistics Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Products</p>
+                  <p className="text-2xl font-bold mt-1">{stats.totalProducts.toLocaleString()}</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Package className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Inventory Value (Cost)</p>
+                  <p className="text-2xl font-bold mt-1">{formatCurrency(stats.totalValue)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Total worth at cost price</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {success && (
-        <Alert className="bg-green-50 text-green-900 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-900">
-          <AlertDescription>{success}</AlertDescription>
-        </Alert>
-      )}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Low Stock</p>
+                  <p className="text-2xl font-bold mt-1">{stats.lowStockCount.toLocaleString()}</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-yellow-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Stock Alerts */}
-      {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
-        <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
-          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-          <AlertDescription className="text-amber-900 dark:text-amber-200">
-            <div className="font-semibold mb-1">Stock Alerts</div>
-            {outOfStockProducts.length > 0 && (
-              <div>• {outOfStockProducts.length} product(s) out of stock</div>
-            )}
-            {lowStockProducts.length > 0 && (
-              <div>• {lowStockProducts.length} product(s) running low</div>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Out of Stock</p>
+                  <p className="text-2xl font-bold mt-1">{stats.outOfStockCount.toLocaleString()}</p>
+                </div>
+                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                  <PackageX className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Category Management Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Filters Panel */}
+        <Card>
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Folder className="h-5 w-5" />
-              Category Management
+              <Filter className="h-5 w-5" />
+              Filters && Search
             </CardTitle>
-            <Dialog open={isCategoryDialogOpen} onOpenChange={(open) => {
-              setIsCategoryDialogOpen(open);
-              if (!open) resetCategoryForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Category
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>{editingCategory ? 'Edit Category' : 'Create New Category'}</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCategorySubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="categoryName">Category Name *</Label>
-                    <Input
-                      id="categoryName"
-                      value={categoryFormName}
-                      onChange={(e) => setCategoryFormName(e.target.value)}
-                      required
-                      placeholder="e.g., Seafood, Spices, Dried Goods"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="categoryDescription">Description</Label>
-                    <Textarea
-                      id="categoryDescription"
-                      value={categoryFormDescription}
-                      onChange={(e) => setCategoryFormDescription(e.target.value)}
-                      placeholder="Category description (optional)"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="flex gap-2 pt-4">
-                    <Button type="submit" disabled={categorySubmitting} className="flex-1">
-                      {categorySubmitting ? 'Saving...' : (editingCategory ? 'Update Category' : 'Create Category')}
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => {
-                      setIsCategoryDialogOpen(false);
-                      resetCategoryForm();
-                    }}>
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {categories.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Tag className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>No categories yet. Create one to organize your products.</p>
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {categories.map((category) => (
-                <Badge key={category.id} variant="secondary" className="px-3 py-2 text-sm flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100">
-                  <Tag className="h-3 w-3" />
-                  <span>{category.name}</span>
-                  <button
-                    onClick={() => openEditCategoryDialog(category)}
-                    className="ml-1 hover:text-primary"
-                  >
-                    <Edit className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteCategory(category.id, category.name)}
-                    className="ml-1 hover:text-destructive"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Filters and Actions */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
-                <Label htmlFor="search">Search Products</Label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="search">Search</Label>
                   <Input
                     id="search"
-                    placeholder="Search by name, SKU, or barcode..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    placeholder="Name, SKU, or Barcode..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="stockStatus">Stock Status</Label>
+                  <select
+                    id="stockStatus"
+                    value={selectedStockStatus}
+                    onChange={(e) => setSelectedStockStatus(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">All Stock</option>
+                    <option value="in-stock">In Stock</option>
+                    <option value="low-stock">Low Stock</option>
+                    <option value="out-of-stock">Out of Stock</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="activeStatus">Status</Label>
+                  <select
+                    id="activeStatus"
+                    value={selectedActiveStatus}
+                    onChange={(e) => setSelectedActiveStatus(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="filterCategory">Category</Label>
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
-                  <SelectTrigger id="filterCategory">
-                    <SelectValue placeholder="All Categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {categories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="filterStock">Stock Status</Label>
-                <Select value={filterStock} onValueChange={setFilterStock}>
-                  <SelectTrigger id="filterStock">
-                    <SelectValue placeholder="All Stock" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stock</SelectItem>
-                    <SelectItem value="low">Low Stock</SelectItem>
-                    <SelectItem value="out">Out of Stock</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('');
+                    setSelectedStockStatus('');
+                    setSelectedActiveStatus('');
+                  }}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Filters
+                </Button>
+                <Button variant="outline" onClick={exportToCSV} disabled={filteredProducts.length === 0}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
+                <Button variant="outline" onClick={fetchProducts}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button onClick={openCreateDialog}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className={viewMode === 'grid' ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
-                >
-                  <Grid3x3 className="h-4 w-4 mr-2" />
-                  Grid
-                </Button>
+        {/* View Toggle and Count */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'} found
+              </div>
+              <div className="flex gap-2">
                 <Button
                   variant={viewMode === 'table' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('table')}
-                  className={viewMode === 'table' ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
                 >
                   <List className="h-4 w-4 mr-2" />
                   Table
                 </Button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {selectedProducts.size > 0 && (
-                  <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete ({selectedProducts.size})
-                  </Button>
-                )}
-                <Button variant="outline" size="sm" onClick={handleExportCSV}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <Grid3x3 className="h-4 w-4 mr-2" />
+                  Grid
                 </Button>
-                <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                  setIsDialogOpen(open);
-                  if (!open) resetForm();
-                }}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Product
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>{editingProduct ? 'Edit Product' : 'Create New Product'}</DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                      <Tabs defaultValue="basic" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
-                          <TabsTrigger value="basic">Basic</TabsTrigger>
-                          <TabsTrigger value="inventory">Inventory</TabsTrigger>
-                          <TabsTrigger value="pricing">Pricing</TabsTrigger>
-                          <TabsTrigger value="alerts">Alerts</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="basic" className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="name">Product Name *</Label>
-                            <Input
-                              id="name"
-                              value={formName}
-                              onChange={(e) => setFormName(e.target.value)}
-                              required
-                              placeholder="e.g., Dry Fish KET"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Textarea
-                              id="description"
-                              value={formDescription}
-                              onChange={(e) => setFormDescription(e.target.value)}
-                              placeholder="Product description"
-                              rows={3}
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="imageUrl">Image URL</Label>
-                            <Input
-                              id="imageUrl"
-                              value={formImageUrl}
-                              onChange={(e) => setFormImageUrl(e.target.value)}
-                              placeholder="https://example.com/image.jpg"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="category">Category</Label>
-                              <Select value={formCategory} onValueChange={setFormCategory}>
-                                <SelectTrigger id="category">
-                                  <SelectValue placeholder="Select category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {categories.map(cat => (
-                                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="unitType">Unit Type</Label>
-                              <Select value={formUnitType} onValueChange={(val) => setFormUnitType(val as 'weight' | 'unit')}>
-                                <SelectTrigger id="unitType">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="weight">Weight (KG/G)</SelectItem>
-                                  <SelectItem value="unit">Unit (Pieces)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="isActive"
-                              checked={formIsActive}
-                              onCheckedChange={setFormIsActive}
-                            />
-                            <Label htmlFor="isActive">Active Product</Label>
-                          </div>
-                        </TabsContent>
-
-                        <TabsContent value="inventory" className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="sku">SKU</Label>
-                              <Input
-                                id="sku"
-                                value={formSku}
-                                onChange={(e) => setFormSku(e.target.value)}
-                                placeholder="e.g., SF-DF001"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="barcode">Barcode</Label>
-                              <Input
-                                id="barcode"
-                                value={formBarcode}
-                                onChange={(e) => setFormBarcode(e.target.value)}
-                                placeholder="e.g., 1234567890123"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="stockQuantity">
-                                Stock Quantity {formUnitType === 'weight' ? '(KG)' : '(Units)'}
-                              </Label>
-                              <Input
-                                id="stockQuantity"
-                                type="number"
-                                min="0"
-                                step={formUnitType === 'weight' ? '0.001' : '1'}
-                                value={formStockQuantity}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (formUnitType === 'unit') {
-                                    // For units, only allow integers
-                                    const intValue = value.replace(/[^0-9]/g, '');
-                                    setFormStockQuantity(intValue);
-                                  } else {
-                                    // For weight, allow decimals
-                                    const decimalValue = value.replace(/[^0-9.]/g, '');
-                                    // Ensure only one decimal point
-                                    const parts = decimalValue.split('.');
-                                    if (parts.length > 2) {
-                                      setFormStockQuantity(parts[0] + '.' + parts.slice(1).join(''));
-                                    } else {
-                                      setFormStockQuantity(decimalValue);
-                                    }
-                                  }
-                                }}
-                                placeholder={formUnitType === 'weight' ? '0.000' : '0'}
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label htmlFor="reorderLevel">
-                                Reorder Level {formUnitType === 'weight' ? '(KG)' : '(Units)'}
-                              </Label>
-                              <Input
-                                id="reorderLevel"
-                                type="number"
-                                min="0"
-                                step={formUnitType === 'weight' ? '0.001' : '1'}
-                                value={formReorderLevel}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  if (formUnitType === 'unit') {
-                                    // For units, only allow integers
-                                    const intValue = value.replace(/[^0-9]/g, '');
-                                    setFormReorderLevel(intValue);
-                                  } else {
-                                    // For weight, allow decimals
-                                    const decimalValue = value.replace(/[^0-9.]/g, '');
-                                    // Ensure only one decimal point
-                                    const parts = decimalValue.split('.');
-                                    if (parts.length > 2) {
-                                      setFormReorderLevel(parts[0] + '.' + parts.slice(1).join(''));
-                                    } else {
-                                      setFormReorderLevel(decimalValue);
-                                    }
-                                  }
-                                }}
-                                placeholder={formUnitType === 'weight' ? '10.000' : '10'}
-                              />
-                            </div>
-                          </div>
-
-                          <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-900">
-                            <AlertDescription className="text-sm text-blue-800 dark:text-blue-300">
-                              You'll receive alerts when stock falls below the reorder level.
-                            </AlertDescription>
-                          </Alert>
-                        </TabsContent>
-
-                        <TabsContent value="pricing" className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="price">
-                              Default Price per {formUnitType === 'weight' ? 'KG' : 'Unit'} (LKR)
-                            </Label>
-                            <Input
-                              id="price"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={formPrice}
-                              onChange={(e) => setFormPrice(e.target.value)}
-                              placeholder="0.00"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="costPrice">
-                              Cost Price per {formUnitType === 'weight' ? 'KG' : 'Unit'} (LKR)
-                            </Label>
-                            <Input
-                              id="costPrice"
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={formCostPrice}
-                              onChange={(e) => setFormCostPrice(e.target.value)}
-                              placeholder="0.00"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Used for profit calculations in reports
-                            </p>
-                          </div>
-
-                          {formPrice && formCostPrice && (
-                            <Alert className="bg-green-50 border-green-200">
-                              <AlertDescription className="text-sm text-green-800">
-                                <div className="font-semibold">Profit Margin</div>
-                                <div className="mt-1">
-                                  LKR {(parseFloat(formPrice) - parseFloat(formCostPrice)).toFixed(2)} per {formUnitType === 'weight' ? 'KG' : 'unit'}
-                                  {' '}({(((parseFloat(formPrice) - parseFloat(formCostPrice)) / parseFloat(formPrice)) * 100).toFixed(1)}%)
-                                </div>
-                              </AlertDescription>
-                            </Alert>
-                          )}
-                        </TabsContent>
-
-                        <TabsContent value="alerts" className="space-y-4">
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="alertsEnabled"
-                              checked={formAlertsEnabled}
-                              onCheckedChange={setFormAlertsEnabled}
-                            />
-                            <Label htmlFor="alertsEnabled">Enable Stock Alerts</Label>
-                          </div>
-
-                          {formAlertsEnabled && (
-                            <>
-                              <div className="space-y-2">
-                                <Label htmlFor="alertEmail">Alert Email (Optional)</Label>
-                                <Input
-                                  id="alertEmail"
-                                  type="email"
-                                  value={formAlertEmail}
-                                  onChange={(e) => setFormAlertEmail(e.target.value)}
-                                  placeholder="alerts@example.com"
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                  Leave empty to use default business email
-                                </p>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="minStock">Min Stock Level</Label>
-                                  <Input
-                                    id="minStock"
-                                    type="number"
-                                    min="0"
-                                    value={formMinStockLevel}
-                                    onChange={(e) => setFormMinStockLevel(e.target.value)}
-                                    placeholder="Optional"
-                                  />
-                                </div>
-
-                                <div className="space-y-2">
-                                  <Label htmlFor="maxStock">Max Stock Level</Label>
-                                  <Input
-                                    id="maxStock"
-                                    type="number"
-                                    min="0"
-                                    value={formMaxStockLevel}
-                                    onChange={(e) => setFormMaxStockLevel(e.target.value)}
-                                    placeholder="Optional"
-                                  />
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </TabsContent>
-                      </Tabs>
-
-                      <div className="flex gap-2 pt-4">
-                        <Button type="submit" disabled={formSubmitting} className="flex-1">
-                          {formSubmitting ? 'Saving...' : (editingProduct ? 'Update Product' : 'Create Product')}
-                        </Button>
-                        <Button type="button" variant="outline" onClick={() => {
-                          setIsDialogOpen(false);
-                          resetForm();
-                        }}>
-                          Cancel
-                        </Button>
-                      </div>
-                    </form>
-                  </DialogContent>
-                </Dialog>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="text-sm text-muted-foreground">
-        Showing {filteredProducts.length} of {products.length} products
-      </div>
-
-      {loading ? (
-        <ProductListSkeleton count={9} />
-      ) : filteredProducts.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">
-              {searchTerm || filterCategory !== 'all' || filterStock !== 'all'
-                ? 'No products match your filters'
-                : 'No products found. Create one to get started.'}
-            </p>
           </CardContent>
         </Card>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.map((product) => (
-            <Card key={product.id} className={product.stockQuantity === 0 ? 'border-red-300 dark:border-red-900' : product.stockQuantity <= product.reorderLevel ? 'border-yellow-300 dark:border-yellow-900' : ''}>
-              <CardHeader>
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={selectedProducts.has(product.id)}
-                    onCheckedChange={() => toggleProductSelection(product.id)}
-                  />
-                  <div className="flex-1">
-                    <CardTitle className="flex items-start justify-between gap-2">
-                      <span className="truncate">{product.name}</span>
-                      <div className="flex flex-col gap-1">
-                        <Badge variant={product.isActive ? 'default' : 'secondary'} className="text-xs">
-                          {product.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                        {product.stockQuantity === 0 && (
-                          <Badge variant="destructive" className="text-xs">Out</Badge>
-                        )}
-                        {product.stockQuantity > 0 && product.stockQuantity <= product.reorderLevel && (
-                          <Badge className="bg-amber-500 hover:bg-amber-600 text-white text-xs">Low</Badge>
-                        )}
-                      </div>
-                    </CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {product.imageUrl && (
-                  <div className="relative w-full h-32 bg-muted rounded-lg overflow-hidden">
-                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                  </div>
-                )}
 
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  {product.sku && (
-                    <div>
-                      <p className="text-muted-foreground">SKU</p>
-                      <p className="font-mono text-xs">{product.sku}</p>
-                    </div>
-                  )}
-                  {product.category && (
-                    <div>
-                      <p className="text-muted-foreground">Category</p>
-                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs">{product.category}</Badge>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-muted-foreground">Stock</p>
-                    <p className="font-semibold">
-                      {product.unitType === 'weight'
-                        ? Number(product.stockQuantity).toFixed(3)
-                        : Math.round(product.stockQuantity)
-                      } {product.unitType === 'weight' ? 'KG' : 'units'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Alerts</p>
-                    <Badge variant={product.alertsEnabled ? "default" : "secondary"} className="text-xs">
-                      {product.alertsEnabled ? <Bell className="h-3 w-3" /> : <BellOff className="h-3 w-3" />}
-                    </Badge>
-                  </div>
-                </div>
+        {/* Pagination Warning */}
+        {!loading && pagination && (
+          <PaginationWarning pagination={pagination} entityName="products" />
+        )}
 
-                {product.defaultPricePerKg && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Price per {product.unitType === 'weight' ? 'KG' : 'Unit'}</p>
-                    <p className="font-bold text-lg">LKR {product.defaultPricePerKg.toFixed(2)}</p>
-                  </div>
-                )}
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading products...</p>
+          </div>
+        )}
 
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => openEditDialog(product)}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openStockDialog(product)}
-                  >
-                    <TrendingUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openAlertDialog(product)}
-                  >
-                    <Bell className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDeleteProduct(product.id, product.name)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                  </TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Alerts</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id} className={
-                    product.stockQuantity === 0 ? 'bg-red-50 dark:bg-red-950/20' :
-                      product.stockQuantity <= product.reorderLevel ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''
-                  }>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedProducts.has(product.id)}
-                        onCheckedChange={() => toggleProductSelection(product.id)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {product.imageUrl ? (
-                          <img src={product.imageUrl} alt={product.name} className="w-10 h-10 rounded object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                            <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          {product.description && (
-                            <div className="text-xs text-muted-foreground truncate max-w-xs">{product.description}</div>
+        {/* Error State */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredProducts.length === 0 && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-lg font-medium text-muted-foreground">No products found</p>
+              <p className="text-sm text-muted-foreground mt-2">Try adjusting your filters or search criteria</p>
+              <Button className="mt-4" onClick={openCreateDialog}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create First Product
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Table View */}
+        {!loading && filteredProducts.length > 0 && viewMode === 'table' && (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[250px]">Product</TableHead>
+                      <TableHead className="w-[150px]">SKU / Barcode</TableHead>
+                      <TableHead className="w-[120px]">Category</TableHead>
+                      <TableHead className="text-right w-[100px]">Stock</TableHead>
+                      <TableHead className="text-right w-[120px]">Cost Price</TableHead>
+                      <TableHead className="text-right w-[120px]">Selling Price</TableHead>
+                      <TableHead className="text-center w-[100px]">Status</TableHead>
+                      <TableHead className="text-right w-[140px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => {
+                      const stockStatus = getStockStatus(product);
+                      return (
+                        <TableRow key={product.id}>
+                          <TableCell className="max-w-[250px]">
+                            <div>
+                              <div className="font-medium truncate" title={product.name}>
+                                {product.name}
+                              </div>
+                              {product.description && (
+                                <div className="text-xs text-muted-foreground line-clamp-1" title={product.description}>
+                                  {product.description}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[150px]">
+                            <div className="text-sm">
+                              {product.sku && (
+                                <div className="truncate" title={`SKU: ${product.sku}`}>
+                                  SKU: {product.sku}
+                                </div>
+                              )}
+                              {product.barcode && (
+                                <div className="text-xs text-muted-foreground truncate" title={`Barcode: ${product.barcode}`}>
+                                  BC: {product.barcode}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[120px]">
+                            {product.category ? (
+                              <Badge variant="outline" className="max-w-full truncate" title={product.category}>
+                                {product.category}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div>
+                              <div className="font-medium">
+                                {product.stockQuantity.toFixed(product.unitType === 'weight' ? 3 : 0)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {product.unitType === 'weight' ? 'KG' : 'Units'}
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={`${getStockBadgeColor(stockStatus)} border text-xs mt-1`}
+                              >
+                                {getStockLabel(stockStatus)}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="font-medium">{formatCurrency(product.costPrice)}</div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 text-xs mt-1"
+                              onClick={() => handleViewBatches(product)}
+                            >
+                              <Layers className="h-3 w-3 mr-1" />
+                              View Batches
+                            </Button>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="font-medium">{formatCurrency(product.defaultPricePerKg)}</div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant={product.isActive ? 'default' : 'secondary'}>
+                              {product.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openEditDialog(product)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteDialog(product)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Grid View */}
+        {!loading && filteredProducts.length > 0 && viewMode === 'grid' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredProducts.map((product) => {
+              const stockStatus = getStockStatus(product);
+              return (
+                <Card key={product.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-lg truncate" title={product.name}>
+                            {product.name}
+                          </h3>
+                          {product.category && (
+                            <Badge variant="outline" className="mt-1">{product.category}</Badge>
                           )}
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{product.sku || '-'}</TableCell>
-                    <TableCell>
-                      {product.category ? (
-                        <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100">{product.category}</Badge>
-                      ) : '-'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="font-semibold">
-                        {product.unitType === 'weight'
-                          ? Number(product.stockQuantity).toFixed(3)
-                          : Math.round(product.stockQuantity)
-                        }
-                      </div>
-                      <div className="text-xs text-muted-foreground">{product.unitType === 'weight' ? 'KG' : 'units'}</div>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {product.defaultPricePerKg ? `LKR ${product.defaultPricePerKg.toFixed(2)}` : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        <Badge variant={product.isActive ? 'default' : 'secondary'} className="text-xs w-fit">
+                        <Badge variant={product.isActive ? 'default' : 'secondary'} className="shrink-0">
                           {product.isActive ? 'Active' : 'Inactive'}
                         </Badge>
-                        {product.stockQuantity === 0 && (
-                          <Badge variant="destructive" className="text-xs w-fit">Out of Stock</Badge>
-                        )}
-                        {product.stockQuantity > 0 && product.stockQuantity <= product.reorderLevel && (
-                          <Badge className="bg-yellow-500 text-xs w-fit">Low Stock</Badge>
-                        )}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.alertsEnabled ? "default" : "secondary"}>
-                        {product.alertsEnabled ? <Bell className="h-3 w-3" /> : <BellOff className="h-3 w-3" />}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+
+                      {product.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2" title={product.description}>
+                          {product.description}
+                        </p>
+                      )}
+
+                      <Separator />
+
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Stock:</span>
+                          <div className="font-medium">
+                            {product.stockQuantity.toFixed(product.unitType === 'weight' ? 3 : 0)}{' '}
+                            {product.unitType === 'weight' ? 'KG' : 'Units'}
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`${getStockBadgeColor(stockStatus)} border text-xs mt-1`}
+                          >
+                            {getStockLabel(stockStatus)}
+                          </Badge>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Cost Price:</span>
+                          <div className="font-medium">{formatCurrency(product.costPrice)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Selling Price:</span>
+                          <div className="font-medium">{formatCurrency(product.defaultPricePerKg)}</div>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">SKU:</span>
+                          <div className="font-medium truncate" title={product.sku || ''}>
+                            {product.sku || '-'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div className="flex gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleViewBatches(product)}
+                        >
+                          <Layers className="h-4 w-4 mr-2" />
+                          Batches
+                        </Button>
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => openEditDialog(product)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => openStockDialog(product)}
-                        >
-                          <TrendingUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openAlertDialog(product)}
-                        >
-                          <Bell className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteProduct(product.id, product.name)}
+                          onClick={() => openDeleteDialog(product)}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-
-
-      {/* Stock Adjustment Dialog */}
-      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adjust Stock - {stockAdjustProduct?.name}</DialogTitle>
-            <DialogDescription>
-              Current stock: {stockAdjustProduct?.stockQuantity} {stockAdjustProduct?.unitType === 'weight' ? 'KG' : 'units'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Adjustment Type</Label>
-              <Select value={stockAdjustmentType} onValueChange={(val) => setStockAdjustmentType(val as any)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="add">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-green-600" />
-                      Add Stock
                     </div>
-                  </SelectItem>
-                  <SelectItem value="subtract">
-                    <div className="flex items-center gap-2">
-                      <TrendingDown className="h-4 w-4 text-red-600" />
-                      Remove Stock
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="set">Set Exact Amount</SelectItem>
-                </SelectContent>
-              </Select>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Category Creation Dialog */}
+        <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Create New Category</DialogTitle>
+              <DialogDescription>
+                Add a new product category. It will be available immediately in the dropdown.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="categoryName">Category Name *</Label>
+                <Input
+                  id="categoryName"
+                  value={newCategoryData.name}
+                  onChange={(e) => setNewCategoryData({ ...newCategoryData, name: e.target.value })}
+                  placeholder="e.g., Beverages, Snacks, Dairy"
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="categoryDescription">Description (Optional)</Label>
+                <Textarea
+                  id="categoryDescription"
+                  value={newCategoryData.description}
+                  onChange={(e) => setNewCategoryData({ ...newCategoryData, description: e.target.value })}
+                  placeholder="Brief description of this category..."
+                  rows={3}
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="adjustment">
-                Quantity ({stockAdjustProduct?.unitType === 'weight' ? 'KG' : 'Units'})
-              </Label>
-              <Input
-                id="adjustment"
-                type="number"
-                min="0"
-                step={stockAdjustProduct?.unitType === 'weight' ? '0.001' : '1'}
-                value={stockAdjustment}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (stockAdjustProduct?.unitType === 'unit') {
-                    // For units, only allow integers
-                    const intValue = value.replace(/[^0-9]/g, '');
-                    setStockAdjustment(intValue);
-                  } else {
-                    // For weight, allow decimals
-                    const decimalValue = value.replace(/[^0-9.]/g, '');
-                    // Ensure only one decimal point
-                    const parts = decimalValue.split('.');
-                    if (parts.length > 2) {
-                      setStockAdjustment(parts[0] + '.' + parts.slice(1).join(''));
-                    } else {
-                      setStockAdjustment(decimalValue);
-                    }
-                  }
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setNewCategoryData({ name: '', description: '' });
+                  setCategoryDialogOpen(false);
                 }}
-                placeholder={stockAdjustProduct?.unitType === 'weight' ? '0.000' : '0'}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={stockAdjustmentNotes}
-                onChange={(e) => setStockAdjustmentNotes(e.target.value)}
-                placeholder="Reason for adjustment..."
-                rows={2}
-              />
-            </div>
-
-            {stockAdjustment && stockAdjustProduct && (
-              <Alert>
-                <AlertDescription>
-                  <div className="font-semibold">New Stock Level:</div>
-                  <div className="mt-1">
-                    {(() => {
-                      const adjustmentValue = stockAdjustProduct.unitType === 'weight'
-                        ? parseFloat(stockAdjustment || '0')
-                        : parseInt(stockAdjustment || '0');
-
-                      let newStock = 0;
-                      if (stockAdjustmentType === 'add') {
-                        newStock = stockAdjustProduct.stockQuantity + adjustmentValue;
-                      } else if (stockAdjustmentType === 'subtract') {
-                        newStock = Math.max(0, stockAdjustProduct.stockQuantity - adjustmentValue);
-                      } else {
-                        newStock = adjustmentValue;
-                      }
-
-                      const formattedStock = stockAdjustProduct.unitType === 'weight'
-                        ? newStock.toFixed(3)
-                        : Math.round(newStock);
-
-                      return (
-                        <span>{formattedStock} {stockAdjustProduct.unitType === 'weight' ? 'KG' : 'units'}</span>
-                      );
-                    })()}
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex gap-2">
-              <Button onClick={handleStockAdjustment} disabled={!stockAdjustment || formSubmitting} className="flex-1">
-                {formSubmitting ? 'Saving...' : 'Apply Adjustment'}
-              </Button>
-              <Button variant="outline" onClick={() => setIsStockDialogOpen(false)}>
+                disabled={creatingCategory}
+              >
                 Cancel
               </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+              <Button
+                type="button"
+                onClick={handleCreateCategory}
+                disabled={creatingCategory || !newCategoryData.name.trim()}
+              >
+                {creatingCategory ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Category
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {/* Alert Configuration Dialog */}
-      <Dialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Stock Alerts - {alertConfigProduct?.name}</DialogTitle>
-            <DialogDescription>
-              Configure low stock notifications and thresholds
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="alerts"
-                checked={formAlertsEnabled}
-                onCheckedChange={setFormAlertsEnabled}
-              />
-              <Label htmlFor="alerts">Enable Stock Alerts</Label>
-            </div>
+        {/* Batch Details Dialog */}
+        <Dialog open={batchDialogOpen} onOpenChange={setBatchDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0">
+            {/* Header */}
+            <DialogHeader className="px-6 pt-5 pb-4 border-b bg-muted/30">
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-xl font-bold">
+                  {selectedProduct?.name}
+                </DialogTitle>
+                <Badge variant="outline" className="text-xs">
+                  {productBatches.length} {productBatches.length === 1 ? 'Batch' : 'Batches'}
+                </Badge>
+              </div>
+              <div className="flex gap-6 pt-3 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Current Stock</p>
+                    <p className="font-semibold">
+                      {selectedProduct?.stockQuantity.toFixed(3)} {selectedProduct?.unitType === 'weight' ? 'KG' : 'Units'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                    <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Average Cost Price</p>
+                    <p className="font-semibold">{formatCurrency(selectedProduct?.costPrice || 0)}</p>
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
 
-            {formAlertsEnabled && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Alert Email (Optional)</Label>
+            {loadingBatches ? (
+              <div className="py-20 text-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-4 text-sm text-muted-foreground">Loading batches...</p>
+              </div>
+            ) : productBatches.length === 0 ? (
+              <div className="py-20 text-center">
+                <Archive className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">No batches available</p>
+                <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                  Batches are automatically created when receiving purchase orders or adding initial stock.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-y-auto max-h-[calc(90vh-180px)]">
+                <div className="p-6 space-y-5">
+                  {/* Batches List */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Layers className="h-4 w-4" />
+                      Stock Batches
+                    </h3>
+                    <div className="border rounded-lg overflow-hidden">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50 hover:bg-muted/50">
+                            <TableHead className="font-semibold">Batch Number</TableHead>
+                            <TableHead className="text-right font-semibold">Qty Received</TableHead>
+                            <TableHead className="text-right font-semibold">Qty Remaining</TableHead>
+                            <TableHead className="text-right font-semibold">Cost Price</TableHead>
+                            <TableHead className="font-semibold">Received Date</TableHead>
+                            <TableHead className="font-semibold">Supplier</TableHead>
+                            <TableHead className="text-center font-semibold">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {productBatches.map((batch) => (
+                            <TableRow key={batch.id}>
+                              <TableCell className="font-mono text-sm font-medium">{batch.batchNumber}</TableCell>
+                              <TableCell className="text-right">{batch.quantityReceived.toFixed(3)}</TableCell>
+                              <TableCell className="text-right font-semibold">
+                                {batch.quantityRemaining.toFixed(3)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">{formatCurrency(batch.costPrice)}</TableCell>
+                              <TableCell className="text-sm">
+                                {new Date(batch.receivedDate).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </TableCell>
+                              <TableCell className="text-sm">{batch.supplierName || '-'}</TableCell>
+                              <TableCell className="text-center">
+                                <Badge
+                                  variant={batch.quantityRemaining > 0 ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {batch.quantityRemaining > 0 ? 'Active' : 'Depleted'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  {/* Weighted Average Calculation */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Weighted Average Cost Calculation
+                    </h3>
+                    <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+                      <CardContent className="p-5">
+                        <div className="space-y-4">
+                          {/* Individual Batches */}
+                          <div>
+                            <p className="text-xs text-muted-foreground font-medium mb-2">Active Batches:</p>
+                            <div className="space-y-2">
+                              {productBatches.filter(b => b.quantityRemaining > 0).map((batch, index) => (
+                                <div key={batch.id} className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                                  <div className="flex items-center gap-3">
+                                    <Badge variant="outline" className="font-mono shrink-0">
+                                      Batch {index + 1}
+                                    </Badge>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="font-semibold">{batch.quantityRemaining.toFixed(3)}</span>
+                                      <span className="text-muted-foreground">×</span>
+                                      <span className="font-semibold">{formatCurrency(batch.costPrice)}</span>
+                                    </div>
+                                  </div>
+                                  <div className="font-bold">
+                                    = {formatCurrency(batch.quantityRemaining * batch.costPrice)}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* Summary Calculation */}
+                          <div className="bg-background/80 rounded-lg p-4 space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Total Remaining Quantity:</span>
+                              <span className="font-semibold">
+                                {productBatches.reduce((sum, b) => sum + b.quantityRemaining, 0).toFixed(3)} {selectedProduct?.unitType === 'weight' ? 'KG' : 'Units'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-muted-foreground">Total Inventory Value:</span>
+                              <span className="font-semibold">
+                                {formatCurrency(productBatches.reduce((sum, b) => sum + (b.quantityRemaining * b.costPrice), 0))}
+                              </span>
+                            </div>
+                            <Separator className="my-2" />
+                            <div className="flex justify-between items-center pt-2">
+                              <span className="font-bold">Weighted Average Cost per {selectedProduct?.unitType === 'weight' ? 'KG' : 'Unit'}:</span>
+                              <span className="font-bold text-xl text-primary">
+                                {formatCurrency(selectedProduct?.costPrice || 0)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Formula Explanation */}
+                          <div className="bg-muted/50 rounded-lg p-3 border border-dashed">
+                            <p className="text-xs font-semibold text-muted-foreground mb-1">💡 How it's calculated:</p>
+                            <p className="text-xs text-muted-foreground">
+                              Weighted Average = (Sum of all batch values) ÷ (Total remaining quantity)
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                Delete Product
+              </DialogTitle>
+              <DialogDescription>
+                This action cannot be undone. The product will be soft-deleted and can be restored later.
+              </DialogDescription>
+            </DialogHeader>
+
+            {productToDelete && (
+              <div className="py-4">
+                <div className="bg-muted rounded-lg p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                      <Package className="h-5 w-5 text-destructive" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-lg truncate">{productToDelete.name}</p>
+                      {productToDelete.sku && (
+                        <p className="text-sm text-muted-foreground">SKU: {productToDelete.sku}</p>
+                      )}
+                      {productToDelete.category && (
+                        <Badge variant="outline" className="mt-1">{productToDelete.category}</Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Current Stock</p>
+                      <p className="font-semibold">
+                        {productToDelete.stockQuantity.toFixed(3)} {productToDelete.unitType === 'weight' ? 'KG' : 'Units'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Cost Price</p>
+                      <p className="font-semibold">{formatCurrency(productToDelete.costPrice)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                  <div className="flex gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-medium text-amber-900 dark:text-amber-100">Warning</p>
+                      <p className="text-amber-800 dark:text-amber-200 mt-1">
+                        Deleting this product will remove it from the active inventory. Any existing batches and order history will be preserved.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false);
+                  setProductToDelete(null);
+                }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDeleteProduct}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Product
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create/Edit Product Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingProduct ? 'Edit Product' : 'Create New Product'}</DialogTitle>
+              <DialogDescription>
+                {editingProduct ? 'Update product information' : 'Add a new product to your inventory'}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="name">Product Name *</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    value={formAlertEmail}
-                    onChange={(e) => setFormAlertEmail(e.target.value)}
-                    placeholder="alerts@example.com"
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g., Rice"
                   />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Product description..."
+                    rows={2}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="category">Category</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs"
+                      onClick={() => setCategoryDialogOpen(true)}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      New
+                    </Button>
+                  </div>
+                  <select
+                    id="category"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
+                  </select>
                   <p className="text-xs text-muted-foreground">
-                    Leave empty to use default business email
+                    Category is optional. Click "New" to create a category.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="min">Min Stock Level</Label>
-                    <Input
-                      id="min"
-                      type="number"
-                      min="0"
-                      value={formMinStockLevel}
-                      onChange={(e) => setFormMinStockLevel(e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="max">Max Stock Level</Label>
-                    <Input
-                      id="max"
-                      type="number"
-                      min="0"
-                      value={formMaxStockLevel}
-                      onChange={(e) => setFormMaxStockLevel(e.target.value)}
-                      placeholder="Optional"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unitType">Unit Type</Label>
+                  <select
+                    id="unitType"
+                    value={formData.unitType}
+                    onChange={(e) => setFormData({ ...formData, unitType: e.target.value as 'weight' | 'unit' })}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="weight">Weight (KG)</option>
+                    <option value="unit">Units (Pieces)</option>
+                  </select>
+                  {editingProduct && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500">
+                      ⚠️ Warning: Changing unit type may affect existing stock calculations and batches.
+                    </p>
+                  )}
                 </div>
 
-                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-900">
-                  <AlertDescription className="text-sm text-blue-800 dark:text-blue-300">
-                    Alert thresholds help you maintain optimal inventory levels. You'll be notified when stock falls below minimum or exceeds maximum levels.
-                  </AlertDescription>
-                </Alert>
-              </>
-            )}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="sku">SKU</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs"
+                      onClick={generateSKU}
+                      title="Generate SKU automatically"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Generate
+                    </Button>
+                  </div>
+                  <Input
+                    id="sku"
+                    value={formData.sku}
+                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    placeholder="e.g., RICE-001 (or click Generate)"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Click "Generate" to create unique SKU, or enter manually.
+                  </p>
+                </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleAlertConfig} disabled={formSubmitting} className="flex-1">
-                {formSubmitting ? 'Saving...' : 'Save Alert Settings'}
-              </Button>
-              <Button variant="outline" onClick={() => setIsAlertDialogOpen(false)}>
+                <div className="space-y-2">
+                  <Label htmlFor="barcode">Barcode</Label>
+                  <Input
+                    id="barcode"
+                    value={formData.barcode}
+                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                    placeholder="e.g., 1234567890"
+                  />
+                </div>
+
+                {!editingProduct && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="stockQuantity">
+                        Initial Stock {formData.unitType === 'weight' ? '(KG)' : '(Units)'}
+                      </Label>
+                      <Input
+                        id="stockQuantity"
+                        type="number"
+                        step={formData.unitType === 'weight' ? '0.001' : '1'}
+                        min="0"
+                        value={formData.stockQuantity}
+                        onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="costPrice">
+                        Cost Price * {parseFloat(formData.stockQuantity || '0') > 0 && '(Required for initial stock)'}
+                      </Label>
+                      <Input
+                        id="costPrice"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={formData.costPrice}
+                        onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                        placeholder="0.00"
+                      />
+                      {parseFloat(formData.stockQuantity || '0') > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Cost price is required when adding initial stock for accurate inventory costing.
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {editingProduct && (
+                  <div className="space-y-2 col-span-2">
+                    <Label>Current Cost Price (Calculated from Batches)</Label>
+                    <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                      {formatCurrency(editingProduct.costPrice)} (Read-only)
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Cost price is automatically calculated from batch costs. To change it, receive new batches via purchase orders.
+                    </p>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label htmlFor="sellingPrice">Selling Price (per {formData.unitType === 'weight' ? 'KG' : 'Unit'})</Label>
+                  <Input
+                    id="sellingPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.defaultPricePerKg}
+                    onChange={(e) => setFormData({ ...formData, defaultPricePerKg: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="reorderLevel">Reorder Level</Label>
+                  <Input
+                    id="reorderLevel"
+                    type="number"
+                    step={formData.unitType === 'weight' ? '0.001' : '1'}
+                    min="0"
+                    value={formData.reorderLevel}
+                    onChange={(e) => setFormData({ ...formData, reorderLevel: e.target.value })}
+                    placeholder="10"
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="isActive"
+                      checked={formData.isActive}
+                      onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                    />
+                    <Label htmlFor="isActive">Active</Label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Category Confirmation Dialog */}
-      <ConfirmationDialog
-        open={deleteCategoryConfirmOpen}
-        onOpenChange={setDeleteCategoryConfirmOpen}
-        title="Delete Category"
-        description={`Are you sure you want to delete category "${categoryToDelete?.name}"? This won't delete products in this category.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        variant="danger"
-        onConfirm={confirmDeleteCategory}
-      />
-
-      {/* Delete Product Confirmation Dialog */}
-      <ConfirmationDialog
-        open={deleteProductConfirmOpen}
-        onOpenChange={setDeleteProductConfirmOpen}
-        title="Delete Product"
-        description={`Are you sure you want to delete product "${productToDelete?.name}"? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
-        variant="danger"
-        onConfirm={confirmDeleteProduct}
-      />
-
-      {/* Force Delete Confirmation Dialog (Admin Only) */}
-<ConfirmationDialog
-  open={forceDeleteConfirmOpen}
-  onOpenChange={(open) => {
-    setForceDeleteConfirmOpen(open);
-    if (!open) {
-      setProductToDelete(null);
-      setDeleteErrorDetails(null);
-    }
-  }}
-  title="Force Delete Product"
-  description={
-    <div className="space-y-4 text-sm leading-relaxed">
-
-      {/* ❌ Delete Block Reason */}
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-        <p className="font-semibold text-amber-800 mb-1">
-          Cannot delete product
-        </p>
-
-        {deleteErrorDetails?.details?.activeOrdersCount && (
-          <p className="text-gray-700">
-            This product was used in{' '}
-            <strong>
-              {deleteErrorDetails.details.activeOrdersCount}
-            </strong>{' '}
-            order(s) within the last 30 days.
-          </p>
-        )}
-
-        {deleteErrorDetails?.details?.pendingPurchaseCount && (
-          <p className="text-gray-700 mt-1">
-            There are{' '}
-            <strong>
-              {deleteErrorDetails.details.pendingPurchaseCount}
-            </strong>{' '}
-            pending purchase order(s).
-          </p>
-        )}
+              <Button onClick={editingProduct ? handleUpdateProduct : handleCreateProduct}>
+                {editingProduct ? 'Update Product' : 'Create Product'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* 💡 Suggested Action */}
-      {deleteErrorDetails?.details?.suggestion && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <p className="font-medium text-gray-900 mb-1">
-            Suggested action
-          </p>
-          <p className="text-gray-600">
-            {deleteErrorDetails.details.suggestion}
-          </p>
-        </div>
-      )}
-
-      {/* 🚨 Admin Override */}
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-        <div className="flex gap-3">
-          <ShieldAlert className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-semibold text-red-700 mb-1">
-              Admin Override
-            </p>
-            <p className="text-gray-700 text-sm">
-              This action will permanently remove the product and bypass all
-              safety checks. The deletion will be recorded in the audit log.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Confirmation text */}
-      <p className="text-muted-foreground pt-2">
-        Are you sure you want to continue?
-      </p>
-    </div>
-  }
-  confirmText="Force Delete"
-  cancelText="Cancel"
-  variant="warning"
-  onConfirm={() => confirmDeleteProduct(true)}
-/>
-
-{/* 🗑️ Bulk Delete Confirmation Dialog */}
-<ConfirmationDialog
-  open={bulkDeleteConfirmOpen}
-  onOpenChange={setBulkDeleteConfirmOpen}
-  title="Delete Multiple Products"
-  description={
-    <div className="space-y-2 text-sm">
-      <p>
-        You are about to delete{' '}
-        <strong>{selectedProducts.size}</strong> product(s).
-      </p>
-      <p className="text-muted-foreground">
-        This action is permanent and cannot be undone.
-      </p>
-    </div>
-  }
-  confirmText="Delete All"
-  cancelText="Cancel"
-  variant="danger"
-  onConfirm={confirmBulkDelete}
-/>
-
-    </div >
-
+    </AuthGuard>
   );
 }

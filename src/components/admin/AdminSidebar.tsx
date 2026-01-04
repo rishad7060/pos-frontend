@@ -25,7 +25,9 @@ import {
     ChevronRight,
     Menu,
     X,
-    FileText
+    FileText,
+    Layers,
+    CreditCard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -89,6 +91,7 @@ export default function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: Admi
             title: 'Inventory',
             items: [
                 { icon: Package, label: 'Products', route: '/admin/products' },
+                { icon: Layers, label: 'Batches', route: '/admin/batches' },
                 { icon: Truck, label: 'Suppliers', route: '/admin/suppliers' },
                 { icon: Receipt, label: 'Purchase Orders', route: '/admin/purchases' },
             ]
@@ -104,10 +107,11 @@ export default function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: Admi
         {
             title: 'Finance',
             items: [
+                { icon: DollarSign, label: 'Accounts', route: '/admin/finance' },
+                { icon: CreditCard, label: 'Credits', route: '/admin/credits' },
+                { icon: FileText, label: 'Cheques', route: '/admin/cheques' },
                 { icon: DoorOpen, label: 'Registry', route: '/admin/registry-sessions' },
                 { icon: ArrowLeftRight, label: 'Transactions', route: '/admin/cash-transactions' },
-                { icon: DollarSign, label: 'Expenses', route: '/admin/expenses' },
-                { icon: FileText, label: 'Cheques', route: '/admin/finance/cheques' },
                 { icon: Clock, label: 'Shifts', route: '/admin/shifts' },
                 { icon: RotateCcw, label: 'Refunds', route: '/admin/refunds' },
             ]
@@ -144,7 +148,10 @@ export default function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: Admi
                 case '/admin/purchases': return p.canViewPurchases;
                 case '/admin/customers': return p.canViewCustomers;
                 case '/admin/users': return p.canViewUsers;
+                case '/admin/finance': return p.canViewExpenses;
                 case '/admin/expenses': return p.canViewExpenses;
+                case '/admin/credits': return p.canViewExpenses; // Credit management requires expense viewing
+                case '/admin/cheques': return p.canViewExpenses; // Cheque management requires expense viewing
                 case '/admin/settings': return p.canViewSettings;
                 case '/admin/audit-logs': return p.canViewAuditLogs;
                 default: return true; // Default allow for other basic modules

@@ -140,6 +140,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
 
   // Payment dialog state
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentCustomer, setPaymentCustomer] = useState<Customer | null>(null);
 
   // Weight dialog state
   const [weightDialogOpen, setWeightDialogOpen] = useState(false);
@@ -368,9 +369,17 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         throw new Error(result.error.message || 'Failed to fetch products');
       }
 
-      setProducts(result.data || []);
+      // Handle paginated response: { data: { data: [], pagination: {} } } or plain array
+      console.log('📦 POS Products API Response:', result.data);
+      const productsData = result.data?.data || result.data;
+      const productsArray = Array.isArray(productsData) ? productsData : [];
+
+      console.log('✅ POS Setting products:', productsArray.length, 'products');
+      setProducts(productsArray);
     } catch (err: any) {
+      console.error('Failed to fetch products:', err);
       setError(err.message || 'Failed to fetch products');
+      setProducts([]);
     } finally {
       setProductsLoading(false);
     }
@@ -378,15 +387,22 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
 
   const fetchCategories = async () => {
     try {
-      const result = await api.get('/api/categories?limit=100');
+      const result = await api.get('/api/categories?');
 
       if (result.error) {
         throw new Error(result.error.message || 'Failed to fetch categories');
       }
 
-      setCategories(result.data || []);
+      // Handle paginated response: { data: { data: [], pagination: {} } } or plain array
+      console.log('📦 POS Categories API Response:', result.data);
+      const categoriesData = result.data?.data || result.data;
+      const categoriesArray = Array.isArray(categoriesData) ? categoriesData : [];
+
+      console.log('✅ POS Setting categories:', categoriesArray.length, 'categories');
+      setCategories(categoriesArray);
     } catch (err: any) {
       console.error('Failed to fetch categories:', err);
+      setCategories([]);
     }
   };
 
@@ -398,6 +414,19 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
       }
     } catch (err) {
       console.error('Failed to fetch printer settings:', err);
+    }
+  };
+
+  const handleHardRefresh = async () => {
+    try {
+      console.log('🔄 Hard refresh requested - clearing all caches...');
+      await offlineApi.clearAllCaches();
+      console.log('✅ Caches cleared, reloading page...');
+      // Reload the page to fetch fresh data
+      window.location.reload();
+    } catch (error) {
+      console.error('❌ Error during hard refresh:', error);
+      toast.error('Failed to clear cache. Please try again.');
     }
   };
 
@@ -767,7 +796,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
   const orderDiscountAmount = activeTab ? orderSubtotal * (activeTab.orderDiscount / 100) : 0;
   const orderTotal = orderSubtotal - orderDiscountAmount;
 
-  const initiateCheckout = () => {
+  const initiateCheckout = async () => {
     if (!activeTab || activeTab.cart.length === 0) {
       toast.error('Add at least one item to create an order');
       return;
@@ -784,7 +813,44 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
       }
     }
 
+    // Refresh customer balance before opening payment dialog
+    let customerForPayment = activeTab.customer;
+
+    if (activeTab.customer) {
+      try {
+        console.log('[POS] Fetching balance for customer:', activeTab.customer.id);
+        const res = await fetch(`/api/customers/${activeTab.customer.id}/balance`);
+        if (res.ok) {
+          const data = await res.json();
+          console.log('[POS] Balance API response:', data);
+
+          const updatedCustomer: Customer = {
+            id: data.customer.id,
+            name: data.customer.name,
+            phone: data.customer.phone,
+            email: data.customer.email,
+            address: data.customer.address || null,
+            totalPurchases: data.customer.totalPurchases,
+            visitCount: data.customer.visitCount,
+            creditBalance: data.balance.total,
+            creditBreakdown: data.balance.breakdown,
+          };
+
+          console.log('[POS] Updated customer with balance:', updatedCustomer);
+
+          // Update both the tab and the payment customer state
+          updateActiveTab({ customer: updatedCustomer });
+          customerForPayment = updatedCustomer;
+        }
+      } catch (error) {
+        console.error('Error refreshing customer balance:', error);
+        // Continue anyway - use stale balance rather than blocking checkout
+      }
+    }
+
+    console.log('[POS] Opening payment dialog with customer:', customerForPayment);
     setError('');
+    setPaymentCustomer(customerForPayment);
     setPaymentDialogOpen(true);
   };
 
@@ -852,6 +918,12 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         cashReceived: paymentData.cashReceived,
         changeGiven: paymentData.changeGiven,
         payments: paymentData.payments,
+        // Credit balance tracking
+        customerPreviousBalance: paymentData.customerPreviousBalance || 0,
+        creditUsed: paymentData.creditUsed || 0,
+        amountPaid: paymentData.amountPaid,
+        paidToAdmin: paymentData.paidToAdmin || 0,
+        paidToOldOrders: paymentData.paidToOldOrders || 0,
       };
 
       // TEAM_003: Use offline-aware API for order creation
@@ -896,6 +968,15 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         paymentMethod: paymentData.paymentMethod,
         cashReceived: paymentData.cashReceived,
         changeGiven: paymentData.changeGiven,
+        // Credit balance tracking
+        customerPreviousBalance: paymentData.customerPreviousBalance,
+        creditUsed: paymentData.creditUsed,
+        amountPaid: paymentData.amountPaid,
+        remainingBalance: data.customerBalance?.remainingBalance,
+        paidToAdmin: paymentData.paidToAdmin,
+        paidToOldOrders: paymentData.paidToOldOrders,
+        adminCredit: activeTab.customer?.creditBreakdown?.adminCredits || 0,
+        orderCredit: activeTab.customer?.creditBreakdown?.orderCredits || 0,
       };
 
       const businessSettings = {
@@ -907,7 +988,8 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
 
       const printerConfig = {
         printerType: printerSettings?.printerType || 'disabled',
-        paperWidth: printerSettings?.paperSize === '57mm' || printerSettings?.paperSize === '58mm' ? 58 : 80,
+        paperWidth: printerSettings?.paperSize === 'A5' ? 148 :
+                    printerSettings?.paperSize === '57mm' || printerSettings?.paperSize === '58mm' ? 58 : 80,
         autoPrint: printerSettings?.autoPrint || false,
         printCopies: printerSettings?.printCopies || 1,
         receiptHeader: printerSettings?.receiptHeader || null,
@@ -1305,7 +1387,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
 
   return (
     <div className="flex flex-col lg:flex-row h-full gap-4">
-      {/* LEFT PANEL - Products & Navigation - Flexible Width */}
+      {/* LEFT PANEL - Products && Navigation - Flexible Width */}
       <div className="flex-1 flex flex-col min-w-0 gap-4 h-full lg:h-auto lg:max-h-full">
 
         {/* Permission Status Indicator */}
@@ -1320,13 +1402,24 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
               size="sm"
               onClick={() => fetchPermissions()}
               className="h-6 px-2 flex-shrink-0"
+              title="Refresh permissions"
             >
               <RefreshCw className="h-3 w-3" />
             </Button>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleHardRefresh}
+            className="h-7 px-3 flex-shrink-0 text-xs gap-1.5"
+            title="Hard refresh - Clear all caches and reload"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Hard Refresh</span>
+          </Button>
         </div>
 
-        {/* Top Navigation Bar: Categories & Search */}
+        {/* Top Navigation Bar: Categories && Search */}
         <div className="flex-none flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between pb-2">
           {/* Search Bar - Wider on desktop */}
           <div className="relative w-full sm:max-w-md order-2 sm:order-1">
@@ -1528,13 +1621,13 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
         </div>
       </div>
 
-      {/* RIGHT PANEL - Cart & Checkout */}
+      {/* RIGHT PANEL - Cart && Checkout */}
       {/* Desktop: Always visible sidebar */}
       <div className="hidden lg:flex w-[380px] xl:w-[440px] flex-none flex-col bg-background/50 border-l backdrop-blur-sm h-full overflow-hidden relative z-10 shadow-[-5px_0_30px_rgba(0,0,0,0.03)]">
         {renderCartContent()}
       </div>
 
-      {/* Mobile: Sticky Bottom Bar & Sheet */}
+      {/* Mobile: Sticky Bottom Bar && Sheet */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t p-3 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] pb-safe">
         <Sheet>
           <SheetTrigger asChild>
@@ -1587,7 +1680,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
             <Tabs defaultValue="simple" className="w-full">
               <TabsList className="grid w-full grid-cols-2 h-10">
                 <TabsTrigger value="simple">Simple Weighing</TabsTrigger>
-                <TabsTrigger value="advanced">Box & Net Weight</TabsTrigger>
+                <TabsTrigger value="advanced">Box && Net Weight</TabsTrigger>
               </TabsList>
 
               <TabsContent value="simple" className="space-y-4 mt-4">
@@ -1944,7 +2037,7 @@ export default function MultiTabPOS({ cashierId, onOrderComplete, registrySessio
             orderTotal={orderTotal}
             orderSubtotal={orderSubtotal}
             orderDiscount={orderDiscountAmount}
-            customer={activeTab.customer}
+            customer={paymentCustomer}
             onPaymentComplete={submitOrder}
           />
         )

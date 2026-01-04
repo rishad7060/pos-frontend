@@ -173,7 +173,7 @@ export default function ChequesPage() {
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        setCheques(data);
+        setCheques(Array.isArray(data) ? data : []);
       } else {
         console.error('Invalid cheques data:', data);
         setCheques([]);

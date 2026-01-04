@@ -183,7 +183,8 @@ export default function ExpensesPage() {
     try {
       const response = await fetch('/api/expense-categories?isActive=true');
       if (response.ok) {
-        setCategories(await response.json());
+        const data = await response.json();
+        setCategories(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Failed to fetch categories');
@@ -220,7 +221,7 @@ export default function ExpensesPage() {
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
-          setExpenses(data);
+          setExpenses(Array.isArray(data) ? data : []);
         } else {
           console.error('Expected expenses array but got:', data);
           setExpenses([]);
@@ -248,7 +249,7 @@ export default function ExpensesPage() {
       const response = await fetch(`/api/purchases?limit=100&startDate=${start}&endDate=${end}`);
       if (response.ok) {
         const purchasesData = await response.json();
-        setPurchases(purchasesData);
+        setPurchases(Array.isArray(purchasesData) ? purchasesData : []);
       }
     } catch (error) {
       console.error('Failed to fetch purchases');

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Search, UserPlus, User, X, Check, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { Search, UserPlus, User, X, Check, Phone, Mail, MapPin, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
@@ -18,6 +18,11 @@ export interface Customer {
   address: string | null;
   totalPurchases: number;
   visitCount: number;
+  creditBalance?: number;
+  creditBreakdown?: {
+    adminCredits: number;
+    orderCredits: number;
+  };
 }
 
 interface CustomerSelectionProps {
@@ -76,9 +81,33 @@ export function CustomerSelection({ selectedCustomer, onSelectCustomer }: Custom
     };
   }, [searchTerm]);
 
+  // Fetch customer balance details
+  const fetchCustomerBalance = async (customerId: number): Promise<Customer | null> => {
+    try {
+      const res = await fetch(`/api/customers/${customerId}/balance`);
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          id: data.customer.id,
+          name: data.customer.name,
+          phone: data.customer.phone,
+          email: data.customer.email,
+          address: data.customer.address || null,
+          totalPurchases: data.customer.totalPurchases,
+          visitCount: data.customer.visitCount,
+          creditBalance: data.balance.total,
+          creditBreakdown: data.balance.breakdown,
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching customer balance:', error);
+    }
+    return null;
+  };
+
   const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!newCustomer.name.trim()) {
       toast.error('Customer name is required');
       return;
@@ -127,11 +156,19 @@ export function CustomerSelection({ selectedCustomer, onSelectCustomer }: Custom
             </div>
             <div className="flex flex-col items-start text-left leading-none min-w-0 flex-1">
               <span className="font-medium truncate w-full">{selectedCustomer.name}</span>
-              {selectedCustomer.phone && (
-                <span className="text-[10px] text-muted-foreground truncate w-full">{selectedCustomer.phone}</span>
-              )}
+              <div className="flex items-center gap-2">
+                {selectedCustomer.phone && (
+                  <span className="text-[10px] text-muted-foreground truncate">{selectedCustomer.phone}</span>
+                )}
+                {selectedCustomer.creditBalance !== undefined && selectedCustomer.creditBalance > 0 && (
+                  <Badge variant="destructive" className="text-[9px] px-1 h-4 font-normal">
+                    <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                    LKR {selectedCustomer.creditBalance.toFixed(2)} due
+                  </Badge>
+                )}
+              </div>
             </div>
-            <div 
+            <div
               role="button"
               onClick={handleClearCustomer}
               className="h-6 w-6 rounded-full hover:bg-background/50 flex items-center justify-center flex-none ml-1 cursor-pointer text-muted-foreground hover:text-destructive transition-colors"
@@ -232,8 +269,10 @@ export function CustomerSelection({ selectedCustomer, onSelectCustomer }: Custom
                   searchResults.map((customer) => (
                     <div
                       key={customer.id}
-                      onClick={() => {
-                        onSelectCustomer(customer);
+                      onClick={async () => {
+                        // Fetch customer balance before selecting
+                        const customerWithBalance = await fetchCustomerBalance(customer.id);
+                        onSelectCustomer(customerWithBalance || customer);
                         setOpen(false);
                         setSearchTerm('');
                       }}

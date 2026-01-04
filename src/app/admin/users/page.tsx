@@ -611,9 +611,9 @@ export default function UsersPage() {
                   </p>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Dashboard & Reports */}
+                    {/* Dashboard && Reports */}
                     <div className="space-y-3">
-                      <h5 className="font-medium">Dashboard & Reports</h5>
+                      <h5 className="font-medium">Dashboard && Reports</h5>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <input
@@ -854,9 +854,9 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    {/* System & Audit */}
+                    {/* System && Audit */}
                     <div className="space-y-3">
-                      <h5 className="font-medium">System & Audit</h5>
+                      <h5 className="font-medium">System && Audit</h5>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <input
@@ -900,9 +900,9 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    {/* Customer & Order Management */}
+                    {/* Customer && Order Management */}
                     <div className="space-y-3">
-                      <h5 className="font-medium">Customer & Orders</h5>
+                      <h5 className="font-medium">Customer && Orders</h5>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <input
@@ -1005,9 +1005,9 @@ export default function UsersPage() {
                       </div>
                     </div>
 
-                    {/* Registry & Sessions */}
+                    {/* Registry && Sessions */}
                     <div className="space-y-3">
-                      <h5 className="font-medium">Registry & Sessions</h5>
+                      <h5 className="font-medium">Registry && Sessions</h5>
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <input

@@ -48,16 +48,17 @@ interface PurchasePayment {
 
 interface SupplierPurchasesTabProps {
   supplierId: number;
+  refreshTrigger?: any; // Prop to trigger refresh when payments are made
 }
 
-export default function SupplierPurchasesTab({ supplierId }: SupplierPurchasesTabProps) {
+export default function SupplierPurchasesTab({ supplierId, refreshTrigger }: SupplierPurchasesTabProps) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPurchase, setSelectedPurchase] = useState<Purchase | null>(null);
 
   useEffect(() => {
     fetchPurchases();
-  }, [supplierId]);
+  }, [supplierId, refreshTrigger]); // Re-fetch when refreshTrigger changes
 
   const fetchPurchases = async () => {
     try {
@@ -65,7 +66,7 @@ export default function SupplierPurchasesTab({ supplierId }: SupplierPurchasesTa
       const data = await response.json();
 
       if (Array.isArray(data)) {
-        setPurchases(data);
+        setPurchases(Array.isArray(data) ? data : []);
       } else {
         console.error('Invalid purchases data:', data);
         setPurchases([]);

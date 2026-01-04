@@ -286,7 +286,7 @@ export default function CashTransactionsPage() {
                     <TableHead>Cashier</TableHead>
                     <TableHead>Session</TableHead>
                     <TableHead>Reference</TableHead>
-                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Date && Time</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

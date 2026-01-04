@@ -233,7 +233,7 @@ export default function ShiftsPage() {
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
         <TabsList className="grid w-full grid-cols-2 h-9 sm:h-10">
-          <TabsTrigger value="sessions" className="text-xs sm:text-sm px-2 sm:px-3">Sessions & Logins</TabsTrigger>
+          <TabsTrigger value="sessions" className="text-xs sm:text-sm px-2 sm:px-3">Sessions && Logins</TabsTrigger>
           <TabsTrigger value="shifts" className="text-xs sm:text-sm px-2 sm:px-3">Cash Shifts</TabsTrigger>
         </TabsList>
 

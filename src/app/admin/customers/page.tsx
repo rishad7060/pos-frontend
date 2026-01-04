@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Search, Plus, User, Phone, Mail, MapPin, DollarSign, ShoppingBag, Edit2, Trash2, Eye, CreditCard, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Search, Plus, User, Phone, Mail, MapPin, DollarSign, ShoppingBag, Edit2, Trash2, Eye, CreditCard, AlertTriangle, ShieldAlert, Filter, X } from 'lucide-react';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { toast } from 'sonner';
 import { formatCurrency, toNumber } from '@/lib/number-utils';
@@ -40,6 +40,13 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  // Filter states
+  const [creditStatusFilter, setCreditStatusFilter] = useState<string>('all');
+  const [visitCountFilter, setVisitCountFilter] = useState<string>('all');
+  const [purchaseAmountFilter, setPurchaseAmountFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('creditFirst');
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -71,7 +78,7 @@ export default function CustomersPage() {
       // PERFORMANCE FIX: Backend now returns creditBalance directly in the response
       // Previously: Made 100+ additional API calls to fetch credit balance for each customer
       // Now: Single API call with all data included (100x faster!)
-      const response = await fetchWithAuth('/api/customers?limit=100');
+      const response = await fetchWithAuth('/api/customers?');
 
       if (!response.ok) {
         throw new Error('Failed to fetch customers');
@@ -81,7 +88,7 @@ export default function CustomersPage() {
 
       // Ensure data is an array before setting it
       if (Array.isArray(data)) {
-        setCustomers(data);
+        setCustomers(Array.isArray(data) ? data : []);
       } else {
         console.error('Expected array but got:', data);
         setCustomers([]);
@@ -229,7 +236,7 @@ export default function CustomersPage() {
     setCreditCustomer(customer);
     setCreditForm({
       amount: '',
-      type: 'credit',
+      type: 'debit',
       description: ''
     });
     setCreditDialogOpen(true);
@@ -268,18 +275,68 @@ export default function CustomersPage() {
     }
   };
 
-  const filteredCustomers = customers.filter(c =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Clear all filters function
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setCreditStatusFilter('all');
+    setVisitCountFilter('all');
+    setPurchaseAmountFilter('all');
+    setSortBy('creditFirst');
+  };
 
-  // Sort customers with credit balance first
+  // Check if any filter is active
+  const hasActiveFilters = searchTerm !== '' || creditStatusFilter !== 'all' ||
+    visitCountFilter !== 'all' || purchaseAmountFilter !== 'all' || sortBy !== 'creditFirst';
+
+  const filteredCustomers = customers
+    .filter(c => {
+      // Search filter
+      const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Credit status filter
+      const matchesCreditStatus = creditStatusFilter === 'all' ||
+        (creditStatusFilter === 'hasCredit' && (c.creditBalance || 0) > 0) ||
+        (creditStatusFilter === 'noCredit' && (c.creditBalance || 0) <= 0);
+
+      // Visit count filter
+      const matchesVisitCount = visitCountFilter === 'all' ||
+        (visitCountFilter === 'high' && c.visitCount >= 10) ||
+        (visitCountFilter === 'medium' && c.visitCount >= 5 && c.visitCount < 10) ||
+        (visitCountFilter === 'low' && c.visitCount >= 1 && c.visitCount < 5) ||
+        (visitCountFilter === 'none' && c.visitCount === 0);
+
+      // Purchase amount filter
+      const matchesPurchaseAmount = purchaseAmountFilter === 'all' ||
+        (purchaseAmountFilter === 'high' && c.totalPurchases >= 10000) ||
+        (purchaseAmountFilter === 'medium' && c.totalPurchases >= 5000 && c.totalPurchases < 10000) ||
+        (purchaseAmountFilter === 'low' && c.totalPurchases >= 1000 && c.totalPurchases < 5000) ||
+        (purchaseAmountFilter === 'minimal' && c.totalPurchases < 1000);
+
+      return matchesSearch && matchesCreditStatus && matchesVisitCount && matchesPurchaseAmount;
+    });
+
+  // Sort customers
   const sortedCustomers = [...filteredCustomers].sort((a, b) => {
-    if ((b.creditBalance || 0) !== (a.creditBalance || 0)) {
-      return (b.creditBalance || 0) - (a.creditBalance || 0);
+    switch (sortBy) {
+      case 'creditFirst':
+        // Original behavior: credit balance first, then total purchases
+        if ((b.creditBalance || 0) !== (a.creditBalance || 0)) {
+          return (b.creditBalance || 0) - (a.creditBalance || 0);
+        }
+        return b.totalPurchases - a.totalPurchases;
+      case 'name':
+        return a.name.localeCompare(b.name);
+      case 'totalPurchases':
+        return b.totalPurchases - a.totalPurchases;
+      case 'visitCount':
+        return b.visitCount - a.visitCount;
+      case 'creditBalance':
+        return (b.creditBalance || 0) - (a.creditBalance || 0);
+      default:
+        return 0;
     }
-    return b.totalPurchases - a.totalPurchases;
   });
 
   const customersWithPendingCredit = sortedCustomers.filter(c => (c.creditBalance || 0) > 0);
@@ -316,14 +373,135 @@ export default function CustomersPage() {
 
       <Card className="mb-6">
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, phone, or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="space-y-4">
+            {/* Search Bar */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, phone, or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Filter className="h-4 w-4" />
+                <span className="font-medium">Filters:</span>
+              </div>
+
+              {/* Credit Status Filter */}
+              <Select value={creditStatusFilter} onValueChange={setCreditStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Credit Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Customers</SelectItem>
+                  <SelectItem value="hasCredit">Has Credit Due</SelectItem>
+                  <SelectItem value="noCredit">No Credit</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Visit Count Filter */}
+              <Select value={visitCountFilter} onValueChange={setVisitCountFilter}>
+                <SelectTrigger className="w-full sm:w-[160px]">
+                  <SelectValue placeholder="Visit Count" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Visits</SelectItem>
+                  <SelectItem value="high">High (10+)</SelectItem>
+                  <SelectItem value="medium">Medium (5-9)</SelectItem>
+                  <SelectItem value="low">Low (1-4)</SelectItem>
+                  <SelectItem value="none">New (0)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Purchase Amount Filter */}
+              <Select value={purchaseAmountFilter} onValueChange={setPurchaseAmountFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Purchase Amount" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Amounts</SelectItem>
+                  <SelectItem value="high">High (10k+)</SelectItem>
+                  <SelectItem value="medium">Medium (5k-10k)</SelectItem>
+                  <SelectItem value="low">Low (1k-5k)</SelectItem>
+                  <SelectItem value="minimal">Minimal (&lt;1k)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Sort By */}
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="creditFirst">Credit First</SelectItem>
+                  <SelectItem value="name">Name (A-Z)</SelectItem>
+                  <SelectItem value="totalPurchases">Total Purchases</SelectItem>
+                  <SelectItem value="visitCount">Visit Count</SelectItem>
+                  <SelectItem value="creditBalance">Credit Balance</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Clear Filters Button */}
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="w-full sm:w-auto"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            {/* Active Filters Display */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap gap-2">
+                {searchTerm && (
+                  <Badge variant="secondary" className="text-xs">
+                    Search: {searchTerm}
+                  </Badge>
+                )}
+                {creditStatusFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Credit: {creditStatusFilter === 'hasCredit' ? 'Has Credit Due' : 'No Credit'}
+                  </Badge>
+                )}
+                {visitCountFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Visits: {visitCountFilter === 'high' ? 'High (10+)' :
+                            visitCountFilter === 'medium' ? 'Medium (5-9)' :
+                            visitCountFilter === 'low' ? 'Low (1-4)' : 'New (0)'}
+                  </Badge>
+                )}
+                {purchaseAmountFilter !== 'all' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Amount: {purchaseAmountFilter === 'high' ? 'High (10k+)' :
+                            purchaseAmountFilter === 'medium' ? 'Medium (5k-10k)' :
+                            purchaseAmountFilter === 'low' ? 'Low (1k-5k)' : 'Minimal (<1k)'}
+                  </Badge>
+                )}
+                {sortBy !== 'creditFirst' && (
+                  <Badge variant="secondary" className="text-xs">
+                    Sort: {sortBy === 'name' ? 'Name' :
+                          sortBy === 'totalPurchases' ? 'Total Purchases' :
+                          sortBy === 'visitCount' ? 'Visit Count' : 'Credit Balance'}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Results Count */}
+            <div className="text-sm text-muted-foreground">
+              Showing <span className="font-semibold text-foreground">{sortedCustomers.length}</span> of{' '}
+              <span className="font-semibold text-foreground">{customers.length}</span> customers
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -364,10 +542,10 @@ export default function CustomersPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => openCreditDialog(customer)}
-                      title="Add Manual Credit/Charge"
-                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                      title="Add Charge (Old Debt)"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
-                      <DollarSign className="h-4 w-4" />
+                      <CreditCard className="h-4 w-4" />
                     </Button>
                     <Button
                       size="sm"
@@ -438,7 +616,7 @@ export default function CustomersPage() {
                   onClick={() => router.push(`/admin/customers/${customer.id}`)}
                 >
                   <Eye className="h-4 w-4 mr-2" />
-                  View Details & History
+                  View Details && History
                 </Button>
               </CardContent>
             </Card>
@@ -511,34 +689,15 @@ export default function CustomersPage() {
       <Dialog open={creditDialogOpen} onOpenChange={setCreditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Adjust Credit - {creditCustomer?.name}</DialogTitle>
+            <DialogTitle>Add Charge - {creditCustomer?.name}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreditSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Adjustment Type</Label>
-              <Select
-                value={creditForm.type}
-                onValueChange={(val) => setCreditForm({ ...creditForm, type: val })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="credit">
-                    <div className="flex items-center gap-2 text-green-600">
-                      <DollarSign className="h-4 w-4" />
-                      <span>Add Credit / Payment (Reduce Debt)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="debit">
-                    <div className="flex items-center gap-2 text-red-600">
-                      <CreditCard className="h-4 w-4" />
-                      <span>Add Charge / Debit (Increase Debt)</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Alert className="border-amber-300 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-sm">
+                Use this to add old debts from before the POS system. For receiving payments, use the "Receive Payment" button on the customer detail page.
+              </AlertDescription>
+            </Alert>
 
             <div className="space-y-2">
               <Label htmlFor="amount">Amount</Label>
@@ -558,7 +717,7 @@ export default function CustomersPage() {
               <Label htmlFor="description">Description / Notes</Label>
               <Textarea
                 id="description"
-                placeholder="Reason for adjustment..."
+                placeholder="Reason for adding this charge (e.g., old books debt)..."
                 value={creditForm.description}
                 onChange={(e) => setCreditForm({ ...creditForm, description: e.target.value })}
                 rows={3}
@@ -566,8 +725,8 @@ export default function CustomersPage() {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button type="submit" className="flex-1">
-                Confirm Adjustment
+              <Button type="submit" className="flex-1 bg-red-600 hover:bg-red-700">
+                Add Charge
               </Button>
               <Button type="button" variant="outline" onClick={() => setCreditDialogOpen(false)}>
                 Cancel

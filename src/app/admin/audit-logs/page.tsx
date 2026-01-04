@@ -58,7 +58,7 @@ export default function AuditLogsPage() {
 
       // Validate that we got an array
       if (Array.isArray(data)) {
-        setLogs(data);
+        setLogs(Array.isArray(data) ? data : []);
       } else {
         console.error('Expected logs array but got:', data);
         setLogs([]);
@@ -105,7 +105,7 @@ export default function AuditLogsPage() {
       delete: 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400',
       void: 'bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
       login: 'bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
-      logout: 'bg-gray-100 text-gray-700 dark:bg-gray-900/20 dark:text-gray-400'
+      logout: 'bg-gray-100 text-gray-200 dark:bg-gray-300/20 dark:text-gray-100'
     };
     return colors[action] || 'bg-gray-100 text-gray-700';
   };

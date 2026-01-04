@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, Users, Calendar, CloudOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { fetchWithAuth } from '@/lib/fetch-with-auth';
@@ -47,6 +48,9 @@ export const CloseRegistryDialog = ({
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  // Pending refunds state
+  const [pendingRefunds, setPendingRefunds] = useState<any[]>([]);
+  const [showPendingRefundsWarning, setShowPendingRefundsWarning] = useState(false);
 
   // Fetch fresh session data when dialog opens or session prop changes
   useEffect(() => {
@@ -277,7 +281,14 @@ export const CloseRegistryDialog = ({
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || 'Failed to close registry');
+        // Special handling for pending refunds error
+        if (data.code === 'PENDING_REFUNDS_EXIST') {
+          setPendingRefunds(data.pendingRefunds || []);
+          setShowPendingRefundsWarning(true);
+          toast.error(data.message || 'Cannot close registry: pending refunds exist');
+        } else {
+          toast.error(data.error || 'Failed to close registry');
+        }
         return;
       }
 
@@ -299,7 +310,7 @@ export const CloseRegistryDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[95vh] flex flex-col w-full overflow-hidden">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Close Daily Registry</DialogTitle>
+          <DialogTitle>Close Registry Session</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4 flex-1 overflow-y-auto pr-2">
@@ -354,6 +365,65 @@ export const CloseRegistryDialog = ({
               </div>
             )}
           </div>
+
+          {/* Pending Refunds Warning */}
+          {showPendingRefundsWarning && pendingRefunds.length > 0 && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Cannot Close Registry - Pending Refunds</AlertTitle>
+              <AlertDescription>
+                <p className="mb-2">
+                  You have {pendingRefunds.length} refund(s) awaiting admin approval.
+                  {pendingRefunds.filter((r: any) => r.cashGiven).length > 0 && (
+                    <span className="font-semibold">
+                      {' '}Cash has already been given for {pendingRefunds.filter((r: any) => r.cashGiven).length} refund(s).
+                    </span>
+                  )}
+                </p>
+                <div className="mt-3 space-y-2 max-h-48 overflow-y-auto">
+                  {pendingRefunds.map((refund: any, idx: number) => (
+                    <div key={idx} className="bg-white dark:bg-gray-800 rounded p-2 text-sm border border-red-200 dark:border-red-800">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="font-semibold">{refund.refundNumber}</div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">{refund.reason}</div>
+                          {/* Payment Method Badge */}
+                          <div className="mt-1 flex items-center gap-1">
+                            <span className={`text-xs px-2 py-0.5 rounded ${
+                              refund.refundMethod === 'cash' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                              refund.refundMethod === 'card' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' :
+                              refund.refundMethod === 'mobile' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400' :
+                              refund.refundMethod === 'credit' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                              refund.refundMethod === 'cheque' ? 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400' :
+                              'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                            }`}>
+                              {refund.refundMethod === 'cash' && '💵 Cash'}
+                              {refund.refundMethod === 'card' && '💳 Card'}
+                              {refund.refundMethod === 'mobile' && '📱 Mobile'}
+                              {refund.refundMethod === 'credit' && '🎫 Credit'}
+                              {refund.refundMethod === 'cheque' && '📄 Cheque'}
+                              {!refund.refundMethod && 'Unknown'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold">LKR {refund.amount.toFixed(2)}</div>
+                          {refund.cashGiven && (
+                            <div className="text-xs text-red-600 dark:text-red-400 font-medium">Cash Given ✓</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-sm">
+                  <strong>Action Required:</strong> {pendingRefunds.filter((r: any) => r.cashGiven).length > 0
+                    ? 'Contact admin immediately to approve refunds where cash was already given, or reject other pending refunds.'
+                    : 'Contact admin to approve or reject these refunds before closing the registry.'}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Financial Summary */}
           <div className="p-4 bg-muted rounded-lg space-y-2">

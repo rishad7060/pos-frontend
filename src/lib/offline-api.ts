@@ -137,9 +137,19 @@ export async function getProductsOfflineAware(params?: { isActive?: boolean; lim
             const result = await originalApi.getProducts(params);
 
             if (!result.error && result.data) {
-                // Cache the products for offline use
-                await offlineDb.cachedProducts.cacheAll(result.data);
-                console.log('[OfflineAPI] Cached', result.data.length, 'products');
+                // Handle paginated response: extract .data property if present
+                const productsData = (result.data as any)?.data || result.data;
+                const productsArray = Array.isArray(productsData) ? productsData : [];
+
+                console.log('[OfflineAPI] Got products from API:', productsArray.length, 'products');
+
+                // Cache the products array for offline use
+                if (productsArray.length > 0) {
+                    await offlineDb.cachedProducts.cacheAll(productsArray);
+                    console.log('[OfflineAPI] Cached', productsArray.length, 'products for offline use');
+                }
+
+                // Return the original paginated response structure
                 return result;
             }
 
@@ -245,6 +255,34 @@ export async function createCashTransactionOfflineAware(data: {
     }
 }
 
+/**
+ * Clear all offline caches (Service Worker + IndexedDB)
+ * Use this for hard refresh functionality
+ */
+export async function clearAllCaches(): Promise<void> {
+    console.log('[OfflineAPI] Clearing all caches...');
+
+    try {
+        // Clear IndexedDB caches
+        await offlineDb.cachedProducts.clear();
+        await offlineDb.pendingOrders.clear();
+        await offlineDb.pendingCashTransactions.clear();
+        console.log('[OfflineAPI] IndexedDB caches cleared');
+
+        // Clear Service Worker caches if available
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+            console.log('[OfflineAPI] Service Worker caches cleared:', cacheNames.length, 'caches');
+        }
+
+        console.log('[OfflineAPI] All caches cleared successfully');
+    } catch (error: any) {
+        console.error('[OfflineAPI] Error clearing caches:', error);
+        throw error;
+    }
+}
+
 // =============================================================================
 // Enhanced API export that includes offline-aware methods
 // =============================================================================
@@ -254,6 +292,9 @@ export const offlineApi = {
     createOrder: createOrderOfflineAware,
     getProducts: getProductsOfflineAware,
     createCashTransaction: createCashTransactionOfflineAware,
+
+    // Cache management
+    clearAllCaches: clearAllCaches,
 
     // Passthrough to original API for methods that require online
     login: originalApi.login,

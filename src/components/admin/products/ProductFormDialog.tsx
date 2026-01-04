@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import type { Product, Category } from '@/types/pos';
 
 interface ProductFormDialogProps {
@@ -157,21 +158,17 @@ export function ProductFormDialog({
 
                                 <div className="space-y-2">
                                     <Label htmlFor="category">Category</Label>
-                                    <Select
+                                    <SearchableSelect
+                                        options={categories.map(cat => ({
+                                            value: cat.name,
+                                            label: cat.name
+                                        }))}
                                         value={formData.category || ''}
                                         onValueChange={(v) => updateField('category', v || null)}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select category" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {categories.map(cat => (
-                                                <SelectItem key={cat.id} value={cat.name}>
-                                                    {cat.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        placeholder="Select category"
+                                        searchPlaceholder="Search categories..."
+                                        emptyMessage="No category found."
+                                    />
                                 </div>
                             </div>
 

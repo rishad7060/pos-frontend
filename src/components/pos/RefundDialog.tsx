@@ -41,6 +41,7 @@ interface RefundDialogProps {
   onOpenChange: (open: boolean) => void;
   order: Order | null;
   cashierId: number;
+  canProcessRefunds?: boolean;
   onSuccess?: () => void;
 }
 
@@ -54,7 +55,7 @@ interface RefundItem {
   restockQuantity: number;
 }
 
-export default function RefundDialog({ open, onOpenChange, order, cashierId, onSuccess }: RefundDialogProps) {
+export default function RefundDialog({ open, onOpenChange, order, cashierId, canProcessRefunds = false, onSuccess }: RefundDialogProps) {
   const [refundType, setRefundType] = useState<'full' | 'partial'>('full');
   const [refundItems, setRefundItems] = useState<RefundItem[]>([]);
   const [reason, setReason] = useState('');
@@ -165,7 +166,7 @@ export default function RefundDialog({ open, onOpenChange, order, cashierId, onS
     if (!order) return;
 
     // Check permissions
-    if (!permissions?.canProcessRefunds) {
+    if (!canProcessRefunds) {
       toast.error('You do not have permission to process refunds');
       return;
     }
@@ -376,12 +377,23 @@ export default function RefundDialog({ open, onOpenChange, order, cashierId, onS
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="store_credit">Store Credit</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="cash">💵 Cash</SelectItem>
+                  <SelectItem value="card">💳 Card Reversal</SelectItem>
+                  <SelectItem value="mobile">📱 Mobile Payment</SelectItem>
+                  <SelectItem value="credit">🎫 Store Credit</SelectItem>
+                  <SelectItem value="cheque">📄 Cheque</SelectItem>
                 </SelectContent>
               </Select>
+              {refundMethod === 'credit' && (
+                <p className="text-xs text-blue-600">
+                  ℹ️ Store credit will be added to customer's account balance.
+                </p>
+              )}
+              {refundMethod === 'cheque' && (
+                <p className="text-xs text-purple-600">
+                  ℹ️ Full refund returns original cheque. Partial refund issues new cheque.
+                </p>
+              )}
             </div>
           </div>
 

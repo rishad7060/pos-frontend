@@ -110,7 +110,7 @@ export default function RegistrySessionsPage() {
       const response = await fetch('/api/registry-sessions?limit=100');
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
-      setSessions(data);
+      setSessions(Array.isArray(data) ? data : []);
     } catch (error) {
       toast.error('Failed to fetch registry sessions');
       console.error(error);
@@ -306,7 +306,7 @@ export default function RegistrySessionsPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold">Registry Sessions</h1>
-            <p className="text-sm text-muted-foreground">Complete registry session history & management</p>
+            <p className="text-sm text-muted-foreground">Complete registry session history && management</p>
           </div>
         </div>
         <Button onClick={fetchSessions} variant="outline">

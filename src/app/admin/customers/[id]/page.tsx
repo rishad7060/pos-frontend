@@ -66,6 +66,16 @@ interface OrderItem {
   quantityType: string;
 }
 
+interface PaymentDetail {
+  id: number;
+  paymentType: string;
+  amount: number;
+  chequeNumber?: string | null;
+  chequeDate?: string | null;
+  chequeBankName?: string | null;
+  chequePayerName?: string | null;
+}
+
 interface Order {
   id: number;
   orderNumber: string;
@@ -73,11 +83,17 @@ interface Order {
   subtotal: number;
   discountAmount: number;
   total: number;
+  amountPaid: number;
+  creditUsed: number;
   paymentMethod: string;
   status: string;
   createdAt: string;
   cashierName: string | null;
+  paidToAdmin?: number;
+  paidToOldOrders?: number;
+  unpaidAmount?: number;
   items: OrderItem[];
+  paymentDetails?: PaymentDetail[];
 }
 
 interface CustomerStats {
@@ -122,7 +138,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
       setCustomer(data.customer);
       setCreditBalance(data.creditBalance);
       setCreditTransactions(data.creditTransactions);
-      setOrders(data.orders);
+      setOrders(Array.isArray(data.orders) ? data.orders : []);
       setStats(data.stats);
     } catch (error) {
       toast.error('Failed to fetch customer details');
@@ -184,8 +200,8 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: customer?.id,
-          transactionType: 'debit',
-          amount, // Backend enforces negative sign for debit (customer payment)
+          transactionType: 'credit_used',
+          amount, // Payment received - reduces customer debt
           description: `Payment received via ${paymentMethod}${paymentNotes ? ` - ${paymentNotes}` : ''}`,
         }),
       });
@@ -448,57 +464,101 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {creditTransactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className={`flex items-center justify-between p-4 rounded-lg border ${transaction.transactionType === 'payment'
-                        ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
-                        : transaction.transactionType === 'sale'
-                          ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
-                          : 'bg-muted/50'
+                  {creditTransactions.map((transaction) => {
+                    // Determine if this is a payment (reduces balance) or credit (increases balance)
+                    const isPayment = transaction.transactionType === 'credit_used' || transaction.transactionType === 'payment';
+                    const isCredit = transaction.transactionType === 'credit_added' || transaction.transactionType === 'sale' || transaction.transactionType === 'admin_adjustment';
+
+                    // Get user-friendly label
+                    const getTransactionLabel = () => {
+                      switch (transaction.transactionType) {
+                        case 'credit_used':
+                          if (transaction.description?.includes('Admin')) return 'Payment (Admin Credit)';
+                          if (transaction.description?.includes('Old order')) return 'Payment (Old Orders)';
+                          return 'Payment';
+                        case 'payment':
+                          return 'Payment Received';
+                        case 'credit_added':
+                          return 'Unpaid Order';
+                        case 'sale':
+                          return 'Credit Purchase';
+                        case 'admin_adjustment':
+                          if (transaction.description?.includes('Debit') || transaction.description?.includes('Manual Debit')) {
+                            return 'Admin Added Credit';
+                          }
+                          return 'Admin Adjustment';
+                        case 'credit_refunded':
+                          return 'Refund to Credit';
+                        default:
+                          return transaction.transactionType;
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={transaction.id}
+                        className={`flex items-center justify-between p-4 rounded-lg border ${
+                          isPayment
+                            ? 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800'
+                            : isCredit
+                              ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800'
+                              : 'bg-muted/50'
                         }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${transaction.transactionType === 'payment'
-                          ? 'bg-green-100 dark:bg-green-900/30'
-                          : transaction.transactionType === 'sale'
-                            ? 'bg-red-100 dark:bg-red-900/30'
-                            : 'bg-muted'
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-full ${
+                            isPayment
+                              ? 'bg-green-100 dark:bg-green-900/30'
+                              : isCredit
+                                ? 'bg-red-100 dark:bg-red-900/30'
+                                : 'bg-muted'
                           }`}>
-                          {transaction.transactionType === 'payment' ? (
-                            <TrendingDown className="h-5 w-5 text-green-600" />
-                          ) : transaction.transactionType === 'sale' ? (
-                            <TrendingUp className="h-5 w-5 text-red-600" />
-                          ) : (
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium capitalize">{transaction.transactionType}</p>
-                            {transaction.orderId && (
-                              <Badge variant="outline" className="text-xs">
-                                Order #{transaction.orderId}
-                              </Badge>
+                            {isPayment ? (
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            ) : isCredit ? (
+                              <AlertTriangle className="h-5 w-5 text-red-600" />
+                            ) : (
+                              <FileText className="h-5 w-5 text-muted-foreground" />
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{transaction.description}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {formatDate(transaction.createdAt)}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{getTransactionLabel()}</p>
+                              {transaction.orderId && (
+                                <Badge variant="outline" className="text-xs">
+                                  Order #{transaction.orderId}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{transaction.description}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDate(transaction.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-bold text-lg ${
+                            isPayment ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {isPayment ? (
+                              <>
+                                <span className="text-sm">Paid </span>
+                                {formatCurrency(transaction.amount)}
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-sm">+</span>
+                                {formatCurrency(transaction.amount)}
+                              </>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Balance: {formatCurrency(transaction.balance)}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`font-bold ${transaction.amount < 0 ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                          {transaction.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(transaction.amount))}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Balance: {formatCurrency(transaction.balance)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -582,6 +642,91 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                                 </div>
                               ))}
                             </div>
+
+                            {/* Cashier Information */}
+                            {order.cashierName && (
+                              <div className="mt-4 pt-3 border-t">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Served by:</span>
+                                  <span className="font-medium">{order.cashierName}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Payment Details Section */}
+                            {order.paymentDetails && order.paymentDetails.length > 0 && (
+                              <div className="mt-4 pt-3 border-t">
+                                <p className="text-sm font-medium mb-2">Payment Methods</p>
+                                <div className="space-y-2">
+                                  {order.paymentDetails.map((payment) => (
+                                    <div
+                                      key={payment.id}
+                                      className="flex items-start justify-between p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800"
+                                    >
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-medium capitalize">
+                                            {payment.paymentType === 'mobile' ? 'Mobile Payment' : payment.paymentType}
+                                          </p>
+                                          <Badge variant="outline" className="text-xs">
+                                            {formatCurrency(payment.amount)}
+                                          </Badge>
+                                        </div>
+                                        {payment.paymentType === 'cheque' && payment.chequeNumber && (
+                                          <div className="mt-1 text-xs text-muted-foreground space-y-0.5">
+                                            <p>Cheque #: {payment.chequeNumber}</p>
+                                            {payment.chequeBankName && <p>Bank: {payment.chequeBankName}</p>}
+                                            {payment.chequePayerName && <p>Payer: {payment.chequePayerName}</p>}
+                                            {payment.chequeDate && (
+                                              <p>Date: {new Date(payment.chequeDate).toLocaleDateString()}</p>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Payment Allocation Breakdown */}
+                            {(order.paidToAdmin || order.paidToOldOrders || order.unpaidAmount) && (order.paidToAdmin! > 0 || order.paidToOldOrders! > 0 || order.unpaidAmount! > 0) && (
+                              <div className="mt-4 pt-3 border-t">
+                                <p className="text-sm font-medium mb-2">Payment Allocation</p>
+                                <div className="space-y-2 text-sm">
+                                  {order.paidToAdmin! > 0 && (
+                                    <div className="flex justify-between p-2 bg-green-50 dark:bg-green-900/10 rounded">
+                                      <span className="text-muted-foreground">→ Paid to Admin Credit</span>
+                                      <span className="font-medium text-green-700 dark:text-green-400">{formatCurrency(order.paidToAdmin!)}</span>
+                                    </div>
+                                  )}
+                                  {order.amountPaid > 0 && (
+                                    <div className="flex justify-between p-2 bg-green-50 dark:bg-green-900/10 rounded">
+                                      <span className="text-muted-foreground">→ Paid for Current Order</span>
+                                      <span className="font-medium text-green-700 dark:text-green-400">{formatCurrency(order.amountPaid)}</span>
+                                    </div>
+                                  )}
+                                  {order.paidToOldOrders! > 0 && (
+                                    <div className="flex justify-between p-2 bg-green-50 dark:bg-green-900/10 rounded">
+                                      <span className="text-muted-foreground">→ Paid to Old Orders</span>
+                                      <span className="font-medium text-green-700 dark:text-green-400">{formatCurrency(order.paidToOldOrders!)}</span>
+                                    </div>
+                                  )}
+                                  {order.unpaidAmount! > 0 && (
+                                    <div className="flex justify-between p-2 bg-red-50 dark:bg-red-900/10 rounded">
+                                      <span className="text-muted-foreground">→ Unpaid (Credit)</span>
+                                      <span className="font-medium text-red-700 dark:text-red-400">{formatCurrency(order.unpaidAmount!)}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between pt-2 border-t font-medium">
+                                    <span>Total Payment Received</span>
+                                    <span>{formatCurrency((order.paidToAdmin || 0) + order.amountPaid + (order.paidToOldOrders || 0))}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
                             <div className="mt-4 pt-3 border-t flex justify-between">
                               <span className="text-muted-foreground">Subtotal</span>
                               <span>{formatCurrency(order.subtotal)}</span>

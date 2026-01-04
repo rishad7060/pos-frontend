@@ -83,7 +83,7 @@ export default function RefundsPage() {
       }
       const data = await refundsRes.json();
       if (Array.isArray(data)) {
-        setRefunds(data);
+        setRefunds(Array.isArray(data) ? data : []);
       } else {
         console.error('Expected refunds array but got:', data);
         setRefunds([]);
@@ -378,7 +378,7 @@ export default function RefundsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Refunds & Returns</h1>
+            <h1 className="text-2xl font-bold">Refunds && Returns</h1>
             <p className="text-sm text-muted-foreground">Manage refund requests</p>
           </div>
         </div>
@@ -414,7 +414,21 @@ export default function RefundsPage() {
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Refund Amount</p>
                       <p className="font-bold text-lg text-red-600">LKR {(refund.totalAmount ?? 0).toFixed(2)}</p>
-                      <Badge variant="outline" className="mt-1">{refund.refundMethod}</Badge>
+                      <Badge variant="outline" className={`mt-1 ${
+                        refund.refundMethod === 'cash' ? 'bg-green-50 text-green-700 border-green-300' :
+                        refund.refundMethod === 'card' ? 'bg-blue-50 text-blue-700 border-blue-300' :
+                        refund.refundMethod === 'mobile' ? 'bg-purple-50 text-purple-700 border-purple-300' :
+                        refund.refundMethod === 'credit' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                        refund.refundMethod === 'cheque' ? 'bg-pink-50 text-pink-700 border-pink-300' :
+                        ''
+                      }`}>
+                        {refund.refundMethod === 'cash' && '💵 Cash'}
+                        {refund.refundMethod === 'card' && '💳 Card'}
+                        {refund.refundMethod === 'mobile' && '📱 Mobile'}
+                        {refund.refundMethod === 'credit' && '🎫 Credit'}
+                        {refund.refundMethod === 'cheque' && '📄 Cheque'}
+                        {!refund.refundMethod && 'Unknown'}
+                      </Badge>
                     </div>
                     <div className="flex flex-col gap-2">
                       {getStatusBadge(refund.status)}
@@ -609,11 +623,23 @@ export default function RefundsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="card">Card Reversal</SelectItem>
-                        <SelectItem value="credit">Store Credit</SelectItem>
+                        <SelectItem value="cash">💵 Cash</SelectItem>
+                        <SelectItem value="card">💳 Card Reversal</SelectItem>
+                        <SelectItem value="mobile">📱 Mobile Payment</SelectItem>
+                        <SelectItem value="credit">🎫 Store Credit</SelectItem>
+                        <SelectItem value="cheque">📄 Cheque</SelectItem>
                       </SelectContent>
                     </Select>
+                    {formData.refundMethod === 'credit' && (
+                      <p className="text-xs text-blue-600">
+                        ℹ️ Store credit will be added to customer's account balance.
+                      </p>
+                    )}
+                    {formData.refundMethod === 'cheque' && (
+                      <p className="text-xs text-purple-600">
+                        ℹ️ Full refund returns original cheque. Partial refund issues new cheque.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -735,7 +761,21 @@ export default function RefundsPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Refund Method</p>
-                  <p className="font-semibold">{selectedRefund.refundMethod}</p>
+                  <Badge variant="outline" className={`mt-1 ${
+                    selectedRefund.refundMethod === 'cash' ? 'bg-green-50 text-green-700 border-green-300' :
+                    selectedRefund.refundMethod === 'card' ? 'bg-blue-50 text-blue-700 border-blue-300' :
+                    selectedRefund.refundMethod === 'mobile' ? 'bg-purple-50 text-purple-700 border-purple-300' :
+                    selectedRefund.refundMethod === 'credit' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' :
+                    selectedRefund.refundMethod === 'cheque' ? 'bg-pink-50 text-pink-700 border-pink-300' :
+                    ''
+                  }`}>
+                    {selectedRefund.refundMethod === 'cash' && '💵 Cash'}
+                    {selectedRefund.refundMethod === 'card' && '💳 Card'}
+                    {selectedRefund.refundMethod === 'mobile' && '📱 Mobile'}
+                    {selectedRefund.refundMethod === 'credit' && '🎫 Credit'}
+                    {selectedRefund.refundMethod === 'cheque' && '📄 Cheque'}
+                    {!selectedRefund.refundMethod && 'Unknown'}
+                  </Badge>
                 </div>
               </div>
 

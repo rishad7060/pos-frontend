@@ -80,7 +80,7 @@ export const OpenRegistryDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5" />
-            Open Daily Registry
+            Open Registry Session
           </DialogTitle>
         </DialogHeader>
 
@@ -91,7 +91,7 @@ export const OpenRegistryDialog = ({
             <div className="text-sm">
               <p className="font-medium text-blue-900 dark:text-blue-100">Shared Registry System</p>
               <p className="text-blue-700 dark:text-blue-300">
-                This will open ONE registry for the day. All cashiers can login and use this shared registry.
+                This opens ONE shared registry. All cashiers can use it until someone manually closes it at end of shift.
               </p>
             </div>
           </div>

@@ -87,7 +87,7 @@ export default function PermissionsPage() {
 
       // Ensure cashiers is always an array
       if (Array.isArray(cashiersData)) {
-        setCashiers(cashiersData);
+        setCashiers(Array.isArray(cashiersData) ? cashiersData : []);
       } else {
         console.error('Invalid cashiers data:', cashiersData);
         setCashiers([]);

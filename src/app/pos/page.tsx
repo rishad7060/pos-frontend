@@ -522,7 +522,7 @@ export default function POSPage() {
 
                   <div className="h-6 w-px bg-border mx-0.5 sm:mx-1"></div>
 
-                  {/* User Profile & Logout */}
+                  {/* User Profile && Logout */}
                   <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 pl-1 sm:pl-2 pr-0.5 sm:pr-1">
                     {user && (
                       <div className="hidden lg:block text-right">
