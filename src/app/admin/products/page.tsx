@@ -307,22 +307,32 @@ export default function ProductsPage() {
     if (!editingProduct) return;
 
     try {
+      // Build update payload
+      const updatePayload: any = {
+        name: formData.name,
+        description: formData.description || null,
+        defaultPricePerKg: formData.defaultPricePerKg ? parseFloat(formData.defaultPricePerKg) : null,
+        category: formData.category || null,
+        sku: formData.sku || null,
+        barcode: formData.barcode || null,
+        reorderLevel: parseFloat(formData.reorderLevel),
+        isActive: formData.isActive,
+      };
+
+      // Only include cost price if product currently has no cost price (NULL or 0)
+      if ((editingProduct.costPrice === null || editingProduct.costPrice === 0) && formData.costPrice) {
+        updatePayload.costPrice = parseFloat(formData.costPrice);
+      }
+
       const response = await fetchWithAuth(`/api/products?id=${editingProduct.id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description || null,
-          defaultPricePerKg: formData.defaultPricePerKg ? parseFloat(formData.defaultPricePerKg) : null,
-          category: formData.category || null,
-          sku: formData.sku || null,
-          barcode: formData.barcode || null,
-          reorderLevel: parseFloat(formData.reorderLevel),
-          isActive: formData.isActive,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (response.ok) {
-        toast.success('Product updated successfully');
+        toast.success('Product updated successfully', {
+          description: updatePayload.costPrice ? 'Cost price has been set and batches updated' : undefined
+        });
         setIsDialogOpen(false);
         setEditingProduct(null);
         resetForm();
@@ -330,7 +340,9 @@ export default function ProductsPage() {
         fetchStats();
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to update product');
+        toast.error(data.error || 'Failed to update product', {
+          description: data.details?.message
+        });
       }
     } catch (err: any) {
       toast.error(err.message || 'Failed to update product');
@@ -1528,13 +1540,39 @@ export default function ProductsPage() {
 
                 {editingProduct && (
                   <div className="space-y-2 col-span-2">
-                    <Label>Current Cost Price (Calculated from Batches)</Label>
-                    <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm">
-                      {formatCurrency(editingProduct.costPrice)} (Read-only)
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Cost price is automatically calculated from batch costs. To change it, receive new batches via purchase orders.
-                    </p>
+                    {(editingProduct.costPrice === null || editingProduct.costPrice === 0) ? (
+                      // Allow editing if cost price is NULL or 0 (imported products without cost price)
+                      <>
+                        <Label htmlFor="costPriceEdit" className="flex items-center gap-2">
+                          Cost Price (One-time Fix)
+                          <span className="text-xs text-amber-600 font-normal">(Editable - No cost price set)</span>
+                        </Label>
+                        <Input
+                          id="costPriceEdit"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={formData.costPrice}
+                          onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
+                          placeholder="0.00"
+                          className="border-amber-300 focus:border-amber-500"
+                        />
+                        <p className="text-xs text-amber-600">
+                          This product has no cost price. You can set it once here. After setting, it will be managed via batches only.
+                        </p>
+                      </>
+                    ) : (
+                      // Read-only if cost price already exists
+                      <>
+                        <Label>Current Cost Price (Calculated from Batches)</Label>
+                        <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm">
+                          {formatCurrency(editingProduct.costPrice)} (Read-only)
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Cost price is automatically calculated from batch costs. To change it, receive new batches via purchase orders.
+                        </p>
+                      </>
+                    )}
                   </div>
                 )}
 

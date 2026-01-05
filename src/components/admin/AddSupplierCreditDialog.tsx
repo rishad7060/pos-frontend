@@ -80,8 +80,8 @@ export default function AddSupplierCreditDialog({
   const fetchAvailableCheques = async () => {
     try {
       setLoadingCheques(true);
-      // Fetch ALL cleared cheques that are not endorsed yet (both received from customers and admin-created)
-      const response = await fetchWithAuth('/api/cheques?status=cleared&isEndorsed=false');
+      // Fetch pending cheques that are not endorsed yet (can only endorse pending cheques)
+      const response = await fetchWithAuth('/api/cheques?status=pending&isEndorsed=false');
       const data = await response.json();
 
       if (Array.isArray(data)) {
@@ -127,7 +127,7 @@ export default function AddSupplierCreditDialog({
           payerName: newChequeData.payerName,
           bankName: newChequeData.bankName,
           transactionType: 'received',
-          status: 'cleared', // Mark as cleared so it can be used immediately
+          status: 'pending', // Must be pending to allow endorsement
           notes: newChequeData.notes || `Cheque received for supplier payment to ${supplierName}`,
           payeeName: 'Our Company', // Or get from settings
         }),
@@ -225,7 +225,7 @@ export default function AddSupplierCreditDialog({
                 payerName: newChequeData.payerName,
                 bankName: newChequeData.bankName,
                 transactionType: 'received',
-                status: 'cleared',
+                status: 'pending', // Must be pending to allow endorsement
                 notes: newChequeData.notes || `Cheque for supplier payment to ${supplierName}`,
                 payeeName: 'Our Company',
               }),
@@ -251,16 +251,15 @@ export default function AddSupplierCreditDialog({
         // If using cheque (either existing or newly created), endorse it first
         if (formData.paymentMethod === 'Cheque' && formData.selectedChequeId) {
           try {
-            // Endorse the cheque to the supplier
-            const endorseResponse = await fetchWithAuth(`/api/cheques/${formData.selectedChequeId}`, {
-              method: 'PATCH',
+            // Endorse the cheque to the supplier using the correct endpoint
+            const endorseResponse = await fetchWithAuth(`/api/cheques/${formData.selectedChequeId}/endorse`, {
+              method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                isEndorsed: true,
                 endorsedTo: supplierName,
-                supplierId: supplierId,
+                endorseReason: `Payment to supplier ${supplierName}`,
                 notes: `Endorsed to ${supplierName} for payment`,
               }),
             });
