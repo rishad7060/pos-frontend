@@ -152,6 +152,39 @@ export default function PurchasesPage() {
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
   const [productSearchTerms, setProductSearchTerms] = useState<{ [key: number]: string }>({});
 
+  // Inline creation dialog states
+  const [createSupplierDialogOpen, setCreateSupplierDialogOpen] = useState(false);
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
+
+  // Inline supplier form data
+  const [newSupplierData, setNewSupplierData] = useState({
+    name: '',
+    contactPerson: '',
+    phone: '',
+    email: '',
+    address: '',
+    taxId: '',
+    paymentTerms: '',
+    notes: '',
+    isActive: true
+  });
+
+  // Inline product form data
+  const [newProductData, setNewProductData] = useState({
+    name: '',
+    sku: '',
+    barcode: '',
+    categoryId: '',
+    defaultPricePerKg: '',
+    sellingPrice: '',
+    unitType: 'weight' as 'weight' | 'unit',
+    weightSettings: {
+      boxWeightGrams: '',
+      includesBox: false
+    }
+  });
+
   const [formData, setFormData] = useState({
     supplierId: '',
     items: [{ productId: '', productName: '', quantity: '', unitPrice: '', unitType: 'weight' as 'weight' | 'unit' }],
@@ -635,6 +668,150 @@ export default function PurchasesPage() {
     });
   };
 
+  // Handle inline supplier creation
+  const handleCreateSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newSupplierData.name.trim()) {
+      toast.error('Supplier name is required');
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newSupplierData)
+      });
+
+      if (response.ok) {
+        const createdSupplier = await response.json();
+        toast.success('Supplier created successfully');
+
+        // Refresh suppliers list
+        const suppliersRes = await fetchWithAuth('/api/suppliers?isActive=true');
+        const suppliersData = await suppliersRes.json();
+        const suppliersArray = Array.isArray(suppliersData) ? suppliersData : (suppliersData.data || []);
+        setSuppliers(suppliersArray);
+
+        // Auto-select the newly created supplier
+        setFormData({ ...formData, supplierId: createdSupplier.id.toString() });
+
+        // Reset form and close dialog
+        setNewSupplierData({
+          name: '',
+          contactPerson: '',
+          phone: '',
+          email: '',
+          address: '',
+          taxId: '',
+          paymentTerms: '',
+          notes: '',
+          isActive: true
+        });
+        setCreateSupplierDialogOpen(false);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create supplier');
+      }
+    } catch (error) {
+      console.error('Error creating supplier:', error);
+      toast.error('Failed to create supplier');
+    }
+  };
+
+  // Handle inline product creation
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newProductData.name.trim()) {
+      toast.error('Product name is required');
+      return;
+    }
+
+    try {
+      const response = await fetchWithAuth('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newProductData,
+          defaultPricePerKg: parseFloat(newProductData.defaultPricePerKg) || 0,
+          sellingPrice: parseFloat(newProductData.sellingPrice) || 0,
+          stockQuantity: 0,
+          reorderPoint: 0,
+          isActive: true,
+          costPrice: 0
+        })
+      });
+
+      if (response.ok) {
+        const createdProduct = await response.json();
+        toast.success('Product created successfully');
+
+        // Refresh products list
+        const productsRes = await fetchWithAuth('/api/products?isActive=true');
+        const productsData = await productsRes.json();
+        const productsArray = Array.isArray(productsData) ? productsData : (productsData.data || []);
+        setProducts(productsArray);
+
+        // Auto-select the newly created product in the current item
+        if (currentItemIndex !== null) {
+          updateItem(currentItemIndex, 'productId', createdProduct.id.toString());
+        }
+
+        // Reset form and close dialog
+        setNewProductData({
+          name: '',
+          sku: '',
+          barcode: '',
+          categoryId: '',
+          defaultPricePerKg: '',
+          sellingPrice: '',
+          unitType: 'weight',
+          weightSettings: {
+            boxWeightGrams: '',
+            includesBox: false
+          }
+        });
+        setCreateProductDialogOpen(false);
+        setCurrentItemIndex(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create product');
+      }
+    } catch (error) {
+      console.error('Error creating product:', error);
+      toast.error('Failed to create product');
+    }
+  };
+
+  // Generate SKU automatically for inline product creation
+  const generateProductSKU = () => {
+    let sku = 'PRD'; // Default prefix
+
+    // Add hyphen
+    sku += '-';
+
+    // Use product name if available
+    if (newProductData.name.trim()) {
+      const namePrefix = newProductData.name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 4);
+      sku += namePrefix;
+    } else {
+      sku += 'XXXX';
+    }
+
+    // Add timestamp-based unique suffix
+    const timestamp = Date.now().toString().slice(-4);
+    sku += '-' + timestamp;
+
+    // Update form data
+    setNewProductData({ ...newProductData, sku });
+    toast.success('SKU generated successfully');
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; label: string; icon?: any }> = {
       pending: { variant: 'secondary', label: 'Pending', icon: AlertCircle },
@@ -1009,7 +1186,7 @@ export default function PurchasesPage() {
                     <SelectValue placeholder="Select supplier" />
                   </SelectTrigger>
                   <SelectContent position="popper" className="max-h-[300px]" sideOffset={5}>
-                    <div className="sticky top-0 z-10 bg-popover p-2 border-b">
+                    <div className="sticky top-0 z-10 bg-popover p-2 border-b space-y-2">
                       <div className="relative">
                         <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
@@ -1021,6 +1198,19 @@ export default function PurchasesPage() {
                           onKeyDown={(e) => e.stopPropagation()}
                         />
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-8 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCreateSupplierDialogOpen(true);
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Create New Supplier
+                      </Button>
                     </div>
                     <div className="max-h-[240px] overflow-y-auto">
                       {suppliers
@@ -1108,7 +1298,7 @@ export default function PurchasesPage() {
                               <SelectValue placeholder="Select product" />
                             </SelectTrigger>
                             <SelectContent position="popper" className="max-h-[300px] w-[var(--radix-select-trigger-width)]" sideOffset={5}>
-                              <div className="sticky top-0 z-10 bg-popover p-2 border-b">
+                              <div className="sticky top-0 z-10 bg-popover p-2 border-b space-y-2">
                                 <div className="relative">
                                   <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                   <Input
@@ -1120,6 +1310,20 @@ export default function PurchasesPage() {
                                     onKeyDown={(e) => e.stopPropagation()}
                                   />
                                 </div>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full h-8 text-xs"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCurrentItemIndex(index);
+                                    setCreateProductDialogOpen(true);
+                                  }}
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  Create New Product
+                                </Button>
                               </div>
                               <div className="max-h-[240px] overflow-y-auto">
                                 {(() => {
@@ -1909,6 +2113,185 @@ export default function PurchasesPage() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Inline Supplier Creation Dialog */}
+      <Dialog open={createSupplierDialogOpen} onOpenChange={setCreateSupplierDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Supplier</DialogTitle>
+            <DialogDescription>
+              Add a new supplier to the system
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateSupplier} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="supplier-name">Supplier Name *</Label>
+                <Input
+                  id="supplier-name"
+                  value={newSupplierData.name}
+                  onChange={(e) => setNewSupplierData({ ...newSupplierData, name: e.target.value })}
+                  required
+                  placeholder="Enter supplier name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supplier-contact">Contact Person</Label>
+                <Input
+                  id="supplier-contact"
+                  value={newSupplierData.contactPerson}
+                  onChange={(e) => setNewSupplierData({ ...newSupplierData, contactPerson: e.target.value })}
+                  placeholder="Enter contact person"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="supplier-phone">Phone</Label>
+                <Input
+                  id="supplier-phone"
+                  value={newSupplierData.phone}
+                  onChange={(e) => setNewSupplierData({ ...newSupplierData, phone: e.target.value })}
+                  placeholder="Enter phone number"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="supplier-email">Email</Label>
+                <Input
+                  id="supplier-email"
+                  type="email"
+                  value={newSupplierData.email}
+                  onChange={(e) => setNewSupplierData({ ...newSupplierData, email: e.target.value })}
+                  placeholder="Enter email"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="supplier-address">Address</Label>
+              <Input
+                id="supplier-address"
+                value={newSupplierData.address}
+                onChange={(e) => setNewSupplierData({ ...newSupplierData, address: e.target.value })}
+                placeholder="Enter address"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" className="flex-1">
+                Create Supplier
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setCreateSupplierDialogOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inline Product Creation Dialog */}
+      <Dialog open={createProductDialogOpen} onOpenChange={setCreateProductDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Product</DialogTitle>
+            <DialogDescription>
+              Add a new product to the system
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateProduct} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="product-name">Product Name *</Label>
+                <Input
+                  id="product-name"
+                  value={newProductData.name}
+                  onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
+                  required
+                  placeholder="Enter product name"
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="product-sku">SKU</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={generateProductSKU}
+                    title="Generate SKU automatically"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Generate
+                  </Button>
+                </div>
+                <Input
+                  id="product-sku"
+                  value={newProductData.sku}
+                  onChange={(e) => setNewProductData({ ...newProductData, sku: e.target.value })}
+                  placeholder="Auto-generated or enter manually"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="product-unit-type">Unit Type *</Label>
+                <Select
+                  value={newProductData.unitType}
+                  onValueChange={(value: 'weight' | 'unit') =>
+                    setNewProductData({ ...newProductData, unitType: value })
+                  }
+                >
+                  <SelectTrigger id="product-unit-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="weight">Weight (KG)</SelectItem>
+                    <SelectItem value="unit">Unit (Each)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="product-cost-price">Cost Price (LKR)</Label>
+                <Input
+                  id="product-cost-price"
+                  type="number"
+                  step="0.01"
+                  value={newProductData.defaultPricePerKg}
+                  onChange={(e) => setNewProductData({ ...newProductData, defaultPricePerKg: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="product-selling-price">Selling Price (LKR) *</Label>
+                <Input
+                  id="product-selling-price"
+                  type="number"
+                  step="0.01"
+                  value={newProductData.sellingPrice}
+                  onChange={(e) => setNewProductData({ ...newProductData, sellingPrice: e.target.value })}
+                  required
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-4">
+              <Button type="submit" className="flex-1">
+                Create Product
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setCreateProductDialogOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
