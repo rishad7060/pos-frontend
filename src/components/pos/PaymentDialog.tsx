@@ -597,7 +597,7 @@ export default function PaymentDialog({
             </TabsContent>
 
             {/* Card Payment */}
-            <TabsContent value="card" className="space-y-4 mt-4">
+            {/* <TabsContent value="card" className="space-y-4 mt-4">
               <div className="space-y-3">
                 <Label htmlFor="cardType">Card Type</Label>
                 <div className="grid grid-cols-4 gap-2">
@@ -636,10 +636,10 @@ export default function PaymentDialog({
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
 
             {/* Mobile Payment */}
-            {/* <TabsContent value="mobile" className="space-y-4 mt-4">
+            <TabsContent value="mobile" className="space-y-4 mt-4">
               <div className="space-y-3">
                 <Label htmlFor="mobileReference">Mobile Payment Reference</Label>
                 <Input
@@ -669,7 +669,7 @@ export default function PaymentDialog({
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent> */}
+            </TabsContent>
 
             {/* Cheque Payment */}
             <TabsContent value="cheque" className="space-y-4 mt-4">
@@ -870,7 +870,7 @@ export default function PaymentDialog({
                     <Banknote className="h-4 w-4 mr-1" />
                     Cash
                   </Button>
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={() => addSplitPayment('card')}
@@ -878,8 +878,8 @@ export default function PaymentDialog({
                   >
                     <CreditCard className="h-4 w-4 mr-1" />
                     Card
-                  </Button>
-                  {/* <Button
+                  </Button> */}
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={() => addSplitPayment('mobile')}
@@ -887,7 +887,7 @@ export default function PaymentDialog({
                   >
                     <Wallet className="h-4 w-4 mr-1" />
                     Mobile
-                  </Button> */}
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
