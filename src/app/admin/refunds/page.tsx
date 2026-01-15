@@ -77,7 +77,7 @@ export default function RefundsPage() {
 
   const fetchData = async () => {
     try {
-      const refundsRes = await fetch('/api/refunds?limit=100');
+      const refundsRes = await fetch('/api/refunds?limit=10000');
       if (!refundsRes.ok) {
         throw new Error('Failed to fetch refunds');
       }

@@ -173,9 +173,9 @@ export default function ReportsPage() {
     try {
       // Fetch all reports in parallel
       const [batchRes, productRes, orderRes] = await Promise.all([
-        apiClient.getBatchProfitReport({ startDate, endDate, limit: 100 }),
-        fetch(`/api/reports/profit-analysis?startDate=${new Date(startDate).toISOString()}&endDate=${new Date(endDate).toISOString()}&limit=100`),
-        fetch(`/api/orders/profit-details?startDate=${new Date(startDate).toISOString()}&endDate=${new Date(endDate).toISOString()}&profitStatus=all&limit=100`)
+        apiClient.getBatchProfitReport({ startDate, endDate, limit: 10000 }),
+        fetch(`/api/reports/profit-analysis?startDate=${new Date(startDate).toISOString()}&endDate=${new Date(endDate).toISOString()}&limit=10000`),
+        fetch(`/api/orders/profit-details?startDate=${new Date(startDate).toISOString()}&endDate=${new Date(endDate).toISOString()}&profitStatus=all&limit=10000`)
       ]);
 
       if (batchRes.data) {

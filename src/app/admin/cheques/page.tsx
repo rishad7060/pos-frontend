@@ -140,7 +140,7 @@ export default function ChequesPage() {
   const fetchCheques = async () => {
     try {
       setLoading(true);
-      const response = await fetchWithAuth('/api/cheques?limit=200');
+      const response = await fetchWithAuth('/api/cheques?limit=10000');
 
       if (!response.ok) {
         throw new Error('Failed to fetch cheques');

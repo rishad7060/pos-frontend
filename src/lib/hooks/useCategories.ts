@@ -33,7 +33,7 @@ export function useCategories(options: UseCategoriesOptions = {}): UseCategories
         setError(null);
 
         try {
-            const response = await api.get<Category[]>('/categories?limit=100');
+            const response = await api.get<Category[]>('/categories?limit=10000');
 
             if (response.error) {
                 throw new Error(response.error.message);

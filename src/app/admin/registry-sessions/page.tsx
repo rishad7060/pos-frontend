@@ -107,7 +107,7 @@ export default function RegistrySessionsPage() {
   const fetchSessions = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/registry-sessions?limit=100');
+      const response = await fetch('/api/registry-sessions?limit=10000');
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       setSessions(Array.isArray(data) ? data : []);
@@ -148,7 +148,7 @@ export default function RegistrySessionsPage() {
     setLoadingOrders(true);
     try {
       // Fetch all orders within the session timeframe
-      const response = await fetch('/api/orders?limit=1000');
+      const response = await fetch('/api/orders?limit=10000');
       if (!response.ok) throw new Error('Failed to fetch orders');
       const allOrders = await response.json();
 

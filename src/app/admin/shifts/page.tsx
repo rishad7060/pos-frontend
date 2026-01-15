@@ -110,7 +110,7 @@ export default function ShiftsPage() {
 
   const fetchShifts = async () => {
     try {
-      const response = await fetch('/api/shifts/shifts?limit=100');
+      const response = await fetch('/api/shifts/shifts?limit=10000');
       const data = await response.json();
 
       if (Array.isArray(data)) {

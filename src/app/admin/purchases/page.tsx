@@ -259,9 +259,9 @@ export default function PurchasesPage() {
       // Add timestamp for cache busting to ensure fresh data
       const timestamp = Date.now();
       const [purchasesRes, suppliersRes, productsRes] = await Promise.all([
-        fetchWithAuth(`/api/purchases?limit=200&t=${timestamp}`),
-        fetchWithAuth(`/api/suppliers?isActive=true&t=${timestamp}`),
-        fetchWithAuth(`/api/products?isActive=true&t=${timestamp}`)
+        fetchWithAuth(`/api/purchases?limit=10000&t=${timestamp}`),
+        fetchWithAuth(`/api/suppliers?isActive=true&limit=10000&t=${timestamp}`),
+        fetchWithAuth(`/api/products?isActive=true&limit=10000&t=${timestamp}`)
       ]);
 
       // Check if responses are OK
@@ -309,7 +309,7 @@ export default function PurchasesPage() {
   const fetchPaymentHistory = async (purchaseId: number) => {
     setLoadingHistory(true);
     try {
-      const response = await fetch(`/api/purchase-payments?purchaseId=${purchaseId}&limit=100`);
+      const response = await fetch(`/api/purchase-payments?purchaseId=${purchaseId}&limit=10000`);
       const data = await response.json();
       setPaymentHistory(data);
     } catch (error) {
@@ -322,7 +322,7 @@ export default function PurchasesPage() {
   const fetchReceiveHistory = async (purchaseId: number) => {
     setLoadingHistory(true);
     try {
-      const response = await fetch(`/api/purchase-receives?purchaseId=${purchaseId}&limit=100`);
+      const response = await fetch(`/api/purchase-receives?purchaseId=${purchaseId}&limit=10000`);
       const data = await response.json();
       setReceiveHistory(data);
     } catch (error) {
@@ -335,7 +335,7 @@ export default function PurchasesPage() {
   const fetchReturnHistory = async (purchaseId: number) => {
     setLoadingHistory(true);
     try {
-      const response = await fetch(`/api/purchase-returns?purchaseId=${purchaseId}&limit=100`);
+      const response = await fetch(`/api/purchase-returns?purchaseId=${purchaseId}&limit=10000`);
       const data = await response.json();
       setReturnHistory(data);
     } catch (error) {

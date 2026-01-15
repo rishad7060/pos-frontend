@@ -83,7 +83,7 @@ export default function SuppliersPage() {
 
   const fetchSuppliers = async () => {
     try {
-      const response = await fetchWithAuth('/api/suppliers?');
+      const response = await fetchWithAuth('/api/suppliers?limit=10000');
       const data = await response.json();
 
       // Ensure data is always an array

@@ -97,7 +97,7 @@ export default function PermissionsPage() {
       }
 
       // Fetch all permissions
-      const permsResponse = await fetchWithAuth('/api/cashier-permissions?limit=100');
+      const permsResponse = await fetchWithAuth('/api/cashier-permissions?limit=10000');
       let permsData: any;
       if (permsResponse.ok) {
         permsData = await permsResponse.json();

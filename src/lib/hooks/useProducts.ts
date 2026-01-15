@@ -23,7 +23,7 @@ interface UseProductsReturn {
  * Consolidates product fetching logic used across POS and admin pages
  */
 export function useProducts(options: UseProductsOptions = {}): UseProductsReturn {
-    const { autoFetch = true, limit = 200 } = options;
+    const { autoFetch = true, limit = 10000 } = options;
 
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);

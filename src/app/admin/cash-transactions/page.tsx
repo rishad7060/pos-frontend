@@ -65,7 +65,7 @@ export default function CashTransactionsPage() {
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      let url = '/api/cash-transactions?limit=100';
+      let url = '/api/cash-transactions?limit=10000';
 
       if (typeFilter !== 'all') {
         url += `&transactionType=${typeFilter}`;

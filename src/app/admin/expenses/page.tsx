@@ -217,7 +217,7 @@ export default function ExpensesPage() {
 
   const fetchExpenses = async (start: string, end: string) => {
     try {
-      const response = await fetch(`/api/expenses?limit=100&startDate=${start}&endDate=${end}`);
+      const response = await fetch(`/api/expenses?limit=10000&startDate=${start}&endDate=${end}`);
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
@@ -235,7 +235,7 @@ export default function ExpensesPage() {
 
   const fetchCashTransactions = async (start: string, end: string) => {
     try {
-      const response = await fetch(`/api/cash-transactions?registrySessionId=all&startDate=${start}&endDate=${end}&limit=100`);
+      const response = await fetch(`/api/cash-transactions?registrySessionId=all&startDate=${start}&endDate=${end}&limit=10000`);
       if (response.ok) {
         setCashTransactions(await response.json());
       }
@@ -246,7 +246,7 @@ export default function ExpensesPage() {
 
   const fetchPurchases = async (start: string, end: string) => {
     try {
-      const response = await fetch(`/api/purchases?limit=100&startDate=${start}&endDate=${end}`);
+      const response = await fetch(`/api/purchases?limit=10000&startDate=${start}&endDate=${end}`);
       if (response.ok) {
         const purchasesData = await response.json();
         setPurchases(Array.isArray(purchasesData) ? purchasesData : []);

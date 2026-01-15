@@ -78,7 +78,8 @@ export default function CustomersPage() {
       // PERFORMANCE FIX: Backend now returns creditBalance directly in the response
       // Previously: Made 100+ additional API calls to fetch credit balance for each customer
       // Now: Single API call with all data included (100x faster!)
-      const response = await fetchWithAuth('/api/customers?');
+      // LIMIT FIX: Explicitly request 10,000 customers (default was 100)
+      const response = await fetchWithAuth('/api/customers?limit=10000');
 
       if (!response.ok) {
         throw new Error('Failed to fetch customers');
